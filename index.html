@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sasuke Guide - Client Server</title>
+
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
+
+        #video-container {
+            position: relative;
+            width: 90%;
+            max-width: 400px;
+            aspect-ratio: 4 / 3;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .btn {
+            width: 90%;
+            max-width: 400px;
+            padding: 15px;
+            margin: 15px 0;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn:disabled {
+            background-color: #555555;
+        }
+
+        #status-area {
+            width: 85%;
+            max-width: 380px;
+            padding: 15px;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+        }
+
+        canvas {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Sasuke Guide (サーバー通信版)</h1>
+
+    <div id="video-container">
+        <video id="camera-view" autoplay playsinline muted></video>
+    </div>
+
+    <button id="match-btn" class="btn" disabled>
+        カメラ起動中...
+    </button>
+
+    <div id="status-area">
+        システムを初期化しています...
+    </div>
+
+    <canvas id="capture-canvas" width="640" height="480"></canvas>
+
+    <audio id="guide-audio"></audio>
+
+    <script>
+
+        // FlaskサーバーIP
+        const SERVER_IP = "http://192.168.10.107:5000";
+
+        // 音声ファイル
+        const AUDIO_FILES = {
+            "キッチン": "audio/キッチン.wav",
+            "リビング": "audio/リビング.wav",
+            "部屋1": "audio/部屋1.wav",
+            "部屋2": "audio/部屋2.wav",
+            "和室": "audio/和室.wav",
+            "玄関": "audio/玄関.wav",
+            "脱衣所": "audio/脱衣所.wav",
+            "お風呂": "audio/お風呂.wav"
+        };
+
+        const video = document.getElementById('camera-view');
+        const canvas = document.getElementById('capture-canvas');
+        const matchBtn = document.getElementById('match-btn');
+        const statusArea = document.getElementById('status-area');
+        const audioPlayer = document.getElementById('guide-audio');
+
+        // カメラ初期化
+        async function initCamera() {
+
+            try {
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        width: 640,
+                        height: 480
+                    },
+                    audio: false
+                });
+
+                video.srcObject = stream;
+
+                statusArea.textContent =
+                    "準備完了。\n部屋を映してボタンを押してください。";
+
+                matchBtn.textContent = "部屋を判定する";
+
+                matchBtn.disabled = false;
+
+            } catch (err) {
+
+                statusArea.textContent =
+                    `カメラ起動エラー:\n${err.message}`;
+            }
+        }
+
+        // 判定ボタン
+        matchBtn.addEventListener('click', () => {
+
+            matchBtn.disabled = true;
+
+            statusArea.textContent =
+                "サーバーに画像送信中...\n照合しています...";
+
+            // 現在フレーム取得
+            const ctx = canvas.getContext('2d');
+
+            ctx.drawImage(
+                video,
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+
+            // JPEG変換
+            canvas.toBlob(async (blob) => {
+
+                const formData = new FormData();
+
+                formData.append(
+                    'image',
+                    blob,
+                    'capture.jpg'
+                );
+
+                try {
+
+                    // サーバー送信
+                    const response = await fetch(
+                        `${SERVER_IP}/predict`,
+                        {
+                            method: 'POST',
+                            body: formData
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            "サーバー側でエラーが発生しました"
+                        );
+                    }
+
+                    const result = await response.json();
+
+                    // ログ表示
+                    let logText = "--- 照合結果 ---\n";
+
+                    logText +=
+                        `判定結果: ${result.best_match}\n`;
+
+                    logText +=
+                        `距離: ${result.distance.toFixed(4)}\n`;
+
+                    logText +=
+                        `閾値: ${result.threshold}\n\n`;
+
+                    // 成功時
+                    if (result.success) {
+
+                        logText +=
+                            `▶ 判定成功\n`;
+
+                        logText +=
+                            `${result.best_match} の音声を再生します`;
+
+                        // 音声再生
+                        if (AUDIO_FILES[result.best_match]) {
+
+                            audioPlayer.src =
+                                AUDIO_FILES[result.best_match];
+
+                            audioPlayer.play();
+                        }
+
+                    } else {
+
+                        logText +=
+                            "⚠ 判定保留\n";
+
+                        logText +=
+                            "閾値以上の距離があるため再生しません";
+                    }
+
+                    statusArea.textContent = logText;
+
+                } catch (err) {
+
+                    statusArea.textContent =
+`通信エラー:
+
+PCサーバーが起動しているか確認してください。
+
+IPアドレス:
+${SERVER_IP}
+
+詳細:
+${err.message}`;
+                }
+
+                finally {
+
+                    matchBtn.disabled = false;
+                }
+
+            }, 'image/jpeg', 0.8);
+        });
+
+        // 起動時
+        window.addEventListener(
+            'DOMContentLoaded',
+            initCamera
+        );
+
+    </script>
+
+</body>
+</html>
