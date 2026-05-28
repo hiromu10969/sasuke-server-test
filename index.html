@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
     <title>Sasuke Guide - Client Server</title>
 
     <style>
@@ -11,7 +13,7 @@
             margin: 0;
             padding: 0;
             background-color: #121212;
-            color: #ffffff;
+            color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -27,7 +29,7 @@
             width: 90%;
             max-width: 400px;
             aspect-ratio: 4 / 3;
-            background-color: #000;
+            background-color: black;
             border-radius: 8px;
             overflow: hidden;
         }
@@ -53,7 +55,7 @@
         }
 
         .btn:disabled {
-            background-color: #555555;
+            background-color: #555;
         }
 
         #status-area {
@@ -75,13 +77,19 @@
 
 <body>
 
-    <h1>Sasuke Guide (サーバー通信版)</h1>
+    <h1>Sasuke Guide（サーバー通信版）</h1>
 
     <div id="video-container">
-        <video id="camera-view" autoplay playsinline muted></video>
+        <video id="camera-view"
+               autoplay
+               playsinline
+               muted>
+        </video>
     </div>
 
-    <button id="match-btn" class="btn" disabled>
+    <button id="match-btn"
+            class="btn"
+            disabled>
         カメラ起動中...
     </button>
 
@@ -89,14 +97,30 @@
         システムを初期化しています...
     </div>
 
-    <canvas id="capture-canvas" width="640" height="480"></canvas>
+    <canvas id="capture-canvas"
+            width="640"
+            height="480">
+    </canvas>
 
     <audio id="guide-audio"></audio>
 
     <script>
 
-        // FlaskサーバーIP
-        const SERVER_IP = "http://192.168.10.107:5000";
+        // =========================================================
+        // 【超重要】
+        // ngrok を起動するたびに毎回ここを書き換える
+        //
+        // 例:
+        // https://xxxxx.ngrok-free.dev
+        //
+        // ngrok ターミナルの
+        // "Forwarding" に表示されるURLを入れる
+        // =========================================================
+
+        const SERVER_IP =
+            "https://gallantly-gosling-refrain.ngrok-free.dev";
+
+
 
         // 音声ファイル
         const AUDIO_FILES = {
@@ -110,51 +134,69 @@
             "お風呂": "audio/お風呂.wav"
         };
 
+
+
+        // HTML要素取得
         const video = document.getElementById('camera-view');
         const canvas = document.getElementById('capture-canvas');
         const matchBtn = document.getElementById('match-btn');
         const statusArea = document.getElementById('status-area');
         const audioPlayer = document.getElementById('guide-audio');
 
+
+
+        // =========================================================
         // カメラ初期化
+        // =========================================================
         async function initCamera() {
 
             try {
 
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment",
-                        width: 640,
-                        height: 480
-                    },
-                    audio: false
-                });
+                const stream =
+                    await navigator.mediaDevices.getUserMedia({
+
+                        video: {
+                            facingMode: "environment",
+                            width: 640,
+                            height: 480
+                        },
+
+                        audio: false
+                    });
 
                 video.srcObject = stream;
 
                 statusArea.textContent =
                     "準備完了。\n部屋を映してボタンを押してください。";
 
-                matchBtn.textContent = "部屋を判定する";
+                matchBtn.textContent =
+                    "部屋を判定する";
 
                 matchBtn.disabled = false;
 
-            } catch (err) {
+            }
+            catch (err) {
 
                 statusArea.textContent =
                     `カメラ起動エラー:\n${err.message}`;
             }
         }
 
-        // 判定ボタン
+
+
+        // =========================================================
+        // 判定ボタン押下
+        // =========================================================
         matchBtn.addEventListener('click', () => {
 
             matchBtn.disabled = true;
 
             statusArea.textContent =
-                "サーバーに画像送信中...\n照合しています...";
+                "サーバーへ画像送信中...\n照合しています...";
 
-            // 現在フレーム取得
+
+
+            // 現在フレームをCanvasへ描画
             const ctx = canvas.getContext('2d');
 
             ctx.drawImage(
@@ -165,7 +207,9 @@
                 canvas.height
             );
 
-            // JPEG変換
+
+
+            // Canvas → JPEG化
             canvas.toBlob(async (blob) => {
 
                 const formData = new FormData();
@@ -176,30 +220,46 @@
                     'capture.jpg'
                 );
 
+
+
                 try {
 
-                    // サーバー送信
+                    // =================================================
+                    // Flaskサーバーへ送信
+                    // =================================================
                     const response = await fetch(
+
                         `${SERVER_IP}/predict`,
+
                         {
                             method: 'POST',
                             body: formData
                         }
                     );
 
+
+
                     if (!response.ok) {
+
                         throw new Error(
-                            "サーバー側でエラーが発生しました"
+                            `HTTPエラー: ${response.status}`
                         );
                     }
 
+
+
+                    // JSON受信
                     const result = await response.json();
 
-                    // ログ表示
-                    let logText = "--- 照合結果 ---\n";
+
+
+                    // 結果表示
+                    let logText = "";
+
+                    logText += "===== 判定結果 =====\n\n";
 
                     logText +=
-                        `判定結果: ${result.best_match}\n`;
+                        `判定部屋: ${result.best_match}\n`;
 
                     logText +=
                         `距離: ${result.distance.toFixed(4)}\n`;
@@ -207,14 +267,15 @@
                     logText +=
                         `閾値: ${result.threshold}\n\n`;
 
-                    // 成功時
+
+
+                    // 閾値以内
                     if (result.success) {
 
                         logText +=
-                            `▶ 判定成功\n`;
+                            "判定成功\n音声を再生します";
 
-                        logText +=
-                            `${result.best_match} の音声を再生します`;
+
 
                         // 音声再生
                         if (AUDIO_FILES[result.best_match]) {
@@ -225,31 +286,38 @@
                             audioPlayer.play();
                         }
 
-                    } else {
-
-                        logText +=
-                            "⚠ 判定保留\n";
-
-                        logText +=
-                            "閾値以上の距離があるため再生しません";
                     }
+                    else {
+
+                        logText +=
+                            "判定保留\n閾値以上のため再生しません";
+                    }
+
+
 
                     statusArea.textContent = logText;
 
-                } catch (err) {
+                }
+                catch (err) {
 
                     statusArea.textContent =
-`通信エラー:
+`
+通信エラー
 
-PCサーバーが起動しているか確認してください。
+■ 確認すること
 
-IPアドレス:
-${SERVER_IP}
+1. app.py が起動しているか
+
+2. ngrok が起動しているか
+
+3. SERVER_IP が正しいか
+
+4. Flask が落ちていないか
 
 詳細:
-${err.message}`;
+${err.message}
+`;
                 }
-
                 finally {
 
                     matchBtn.disabled = false;
@@ -258,7 +326,9 @@ ${err.message}`;
             }, 'image/jpeg', 0.8);
         });
 
-        // 起動時
+
+
+        // ページ読み込み時
         window.addEventListener(
             'DOMContentLoaded',
             initCamera
