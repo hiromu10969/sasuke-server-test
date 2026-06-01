@@ -137,6 +137,14 @@
 
 
 
+        // =========================================================
+        // ★追加
+        // 最初のクリックで音声再生権限を取得
+        // =========================================================
+        let audioUnlocked = false;
+
+
+
         async function initCamera() {
 
             try {
@@ -173,9 +181,48 @@
 
 
 
-        matchBtn.addEventListener('click', () => {
+        matchBtn.addEventListener('click', async () => {
 
             matchBtn.disabled = true;
+
+
+
+            // =====================================================
+            // ★追加
+            // 初回クリック時だけ音声再生権限を取得
+            // =====================================================
+            if (!audioUnlocked) {
+
+                try {
+
+                    audioPlayer.src =
+                        AUDIO_FILES["部屋2"];
+
+                    audioPlayer.volume = 0;
+
+                    await audioPlayer.play();
+
+                    audioPlayer.pause();
+
+                    audioPlayer.currentTime = 0;
+
+                    audioPlayer.volume = 1;
+
+                    audioUnlocked = true;
+
+                    console.log("音声権限取得成功");
+
+                }
+                catch (err) {
+
+                    console.log(
+                        "音声権限取得失敗",
+                        err
+                    );
+                }
+            }
+
+
 
             statusArea.textContent =
                 "サーバーへ画像送信中...\n照合しています...";
@@ -256,10 +303,6 @@
 
 
                         if (AUDIO_FILES[result.best_match]) {
-
-                            // =================================================
-                            // ★ 音声デバッグ追加
-                            // =================================================
 
                             const audioPath =
                                 AUDIO_FILES[result.best_match];
