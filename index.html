@@ -109,12 +109,6 @@
         // =========================================================
         // 【超重要】
         // ngrok を起動するたびに毎回ここを書き換える
-        //
-        // 例:
-        // https://xxxxx.ngrok-free.dev
-        //
-        // ngrok ターミナルの
-        // "Forwarding" に表示されるURLを入れる
         // =========================================================
 
         const SERVER_IP =
@@ -122,7 +116,6 @@
 
 
 
-        // 音声ファイル
         const AUDIO_FILES = {
             "キッチン": "audio/キッチン.wav",
             "リビング": "audio/リビング.wav",
@@ -136,7 +129,6 @@
 
 
 
-        // HTML要素取得
         const video = document.getElementById('camera-view');
         const canvas = document.getElementById('capture-canvas');
         const matchBtn = document.getElementById('match-btn');
@@ -145,9 +137,6 @@
 
 
 
-        // =========================================================
-        // カメラ初期化
-        // =========================================================
         async function initCamera() {
 
             try {
@@ -184,9 +173,6 @@
 
 
 
-        // =========================================================
-        // 判定ボタン押下
-        // =========================================================
         matchBtn.addEventListener('click', () => {
 
             matchBtn.disabled = true;
@@ -196,7 +182,6 @@
 
 
 
-            // 現在フレームをCanvasへ描画
             const ctx = canvas.getContext('2d');
 
             ctx.drawImage(
@@ -209,7 +194,6 @@
 
 
 
-            // Canvas → JPEG化
             canvas.toBlob(async (blob) => {
 
                 const formData = new FormData();
@@ -224,9 +208,6 @@
 
                 try {
 
-                    // =================================================
-                    // Flaskサーバーへ送信
-                    // =================================================
                     const response = await fetch(
 
                         `${SERVER_IP}/predict`,
@@ -248,12 +229,10 @@
 
 
 
-                    // JSON受信
                     const result = await response.json();
 
 
 
-                    // 結果表示
                     let logText = "";
 
                     logText += "===== 判定結果 =====\n\n";
@@ -269,21 +248,53 @@
 
 
 
-                    // 閾値以内
                     if (result.success) {
 
                         logText +=
-                            "判定成功\n音声を再生します";
+                            "判定成功\n音声を再生します\n";
 
 
 
-                        // 音声再生
                         if (AUDIO_FILES[result.best_match]) {
 
-                            audioPlayer.src =
+                            // =================================================
+                            // ★ 音声デバッグ追加
+                            // =================================================
+
+                            const audioPath =
                                 AUDIO_FILES[result.best_match];
 
-                            audioPlayer.play();
+                            logText +=
+                                `音声ファイル: ${audioPath}\n`;
+
+                            audioPlayer.src = audioPath;
+
+                            audioPlayer.play()
+
+                            .then(() => {
+
+                                statusArea.textContent =
+                                    logText +
+                                    "\n再生成功";
+                            })
+
+                            .catch((err) => {
+
+                                statusArea.textContent =
+                                    logText +
+                                    "\n再生失敗\n" +
+                                    err.name +
+                                    "\n" +
+                                    err.message;
+                            });
+                        }
+                        else {
+
+                            logText +=
+                                "音声ファイルが見つかりません";
+
+                            statusArea.textContent =
+                                logText;
                         }
 
                     }
@@ -291,11 +302,10 @@
 
                         logText +=
                             "判定保留\n閾値以上のため再生しません";
+
+                        statusArea.textContent =
+                            logText;
                     }
-
-
-
-                    statusArea.textContent = logText;
 
                 }
                 catch (err) {
@@ -328,7 +338,6 @@ ${err.message}
 
 
 
-        // ページ読み込み時
         window.addEventListener(
             'DOMContentLoaded',
             initCamera
