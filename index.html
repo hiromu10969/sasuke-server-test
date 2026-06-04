@@ -1,3 +1,5 @@
+//本番用
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -126,14 +128,18 @@
 
 
         const AUDIO_FILES = {
-            "キッチン": "audio/キッチン.wav",
-            "リビング": "audio/リビング.wav",
-            "部屋1": "audio/部屋1.wav",
-            "部屋2": "audio/部屋2.wav",
-            "和室": "audio/和室.wav",
-            "玄関": "audio/玄関.wav",
-            "脱衣所": "audio/脱衣所.wav",
-            "お風呂": "audio/お風呂.wav"
+            "お気に入りの部屋": "production_audio/お気に入りの部屋.wav",
+            "ガス灯": "production_audio/ガス灯.wav",
+            "きんだみ襖": "production_audio/きんだみ襖.wav",
+            "シャンデリア": "production_audio/シャンデリア.wav",
+            "ステレオ": "production_audio/ステレオ.wav",
+            "トイレ": "production_audio/トイレ.wav",
+            "引手": "production_audio/引手.wav",
+            "夏障子": "production_audio/夏障子.wav",
+            "換気口": "production_audio/換気口.wav",
+            "筋交": "production_audio/筋交.wav",
+            "波型無双連子": "production_audio/波型無双連子.wav",
+            "覆輪目地": "production_audio/覆輪目地.wav
         };
 
 
@@ -173,10 +179,10 @@
                 video.srcObject = stream;
 
                 statusArea.textContent =
-                    "準備完了。\n展示物を映して判定ボタンを押してください。";
+                    "準備完了。\n展示物を映して判定開始ボタンを押してください。";
 
                 matchBtn.textContent =
-                    "部屋を判定する";
+                    "判定開始";
 
                 matchBtn.disabled = false;
 
@@ -205,7 +211,7 @@
                 try {
 
                     audioPlayer.src =
-                        AUDIO_FILES["部屋2"];
+                        AUDIO_FILES["ガス灯"];
 
                     audioPlayer.volume = 0;
 
@@ -294,7 +300,7 @@
                     logText += "===== 判定結果 =====\n\n";
 
                     logText +=
-                        `判定部屋: ${result.best_match}\n`;
+                        `判定: ${result.best_match}\n`;
 
                     logText +=
                         `距離: ${result.distance.toFixed(4)}\n`;
@@ -353,7 +359,7 @@
                     else {
 
                         logText +=
-                            "判定保留\n閾値以上のため再生しません";
+                            "判定に失敗しました\n角度を変えて撮影し直してください";
 
                         statusArea.textContent =
                             logText;
