@@ -208,11 +208,10 @@
 
                 try {
 
-
                     audioPlayer.src =
-                        "production_audio/silent.wav";
+                        AUDIO_FILES["ガス灯"];
 
-                    audioPlayer.muted = true;
+                    audioPlayer.volume = 0;
 
                     await audioPlayer.play();
 
@@ -220,7 +219,7 @@
 
                     audioPlayer.currentTime = 0;
 
-                    audioPlayer.muted = false;
+                    audioPlayer.volume = 1;
 
                     audioUnlocked = true;
 
