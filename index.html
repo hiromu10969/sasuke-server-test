@@ -307,6 +307,27 @@
                         `閾値: ${result.threshold}\n\n`;
 
 
+                    // =====================
+                    // ランキング表示
+                    // =====================
+
+                    if (result.ranking) {
+
+                        logText += "===== ランキング =====\n\n";
+
+                        result.ranking.forEach((item, index) => {
+
+                            logText +=
+                                `${index + 1}位 ${item.name}\n` +
+                                `最小値: ${item.min.toFixed(4)}\n` +
+                                `平均値: ${item.avg.toFixed(4)}\n` +
+                                `登録枚数: ${item.count}\n\n`;
+
+                        });
+
+                    }
+
+
 
                     if (result.success) {
 
