@@ -176,6 +176,23 @@
 
                 video.srcObject = stream;
 
+                video.addEventListener(
+                    "loadedmetadata",
+                    () => {
+
+                        console.log(
+                            "videoWidth =",
+                            video.videoWidth
+                        );
+
+                        console.log(
+                            "videoHeight =",
+                            video.videoHeight
+                        );
+
+                    }
+                );
+
                 statusArea.textContent =
                     "準備完了。\n展示物を映して判定開始ボタンを押してください。";
 
