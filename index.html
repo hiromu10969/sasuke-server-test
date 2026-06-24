@@ -30,19 +30,17 @@
         #video-container {
             position: relative;
             width: 100%;
-            /* 標準カメラと同じ「縦長3:4」の比率をコンテナ側に絶対的な基準として強制します */
-            aspect-ratio: 3 / 4;
+            max-width: 400px;
             background-color: black;
+            border-radius: 8px;
             overflow: hidden;
         }
 
         video {
             width: 100%;
-            height: 100%;
-            /* 比率を歪ませたり切り取ったりせず、3:4の枠内に綺麗に収めます */
-            object-fit: contain;
+            height: auto;
+            display: block;
         }
-
 
 
 
