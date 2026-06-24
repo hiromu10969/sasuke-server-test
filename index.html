@@ -23,26 +23,21 @@
             margin: 10px 0;
         }
 
-
-
-
-
         #video-container {
             position: relative;
-            width: 100%;
+            width: 90%;
+            max-width: 400px;
+            aspect-ratio: 4 / 3;
             background-color: black;
+            border-radius: 8px;
             overflow: hidden;
         }
 
         video {
             width: 100%;
-            height: auto;
-            display: block;
+            height: 100%;
+            object-fit: cover;
         }
-
-
-
-
 
         .btn {
             width: 90%;
@@ -133,29 +128,17 @@
         // =========================================================
         let audioUnlocked = false;
 
-
-
-
-
-
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
-                        // iPhoneカメラのネイティブ比率である 3:4（縦持ちなので横1200:縦1600など）を理想値にします
-                        width: { ideal: 1200 },
-                        height: { ideal: 1600 }
+                        width: 640,
+                        height: 480
                     },
                     audio: false
                 });
                 video.srcObject = stream;
-
-                video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                };
-
                 statusArea.textContent = "準備完了。\n展示物を映して判定開始ボタンを押してください。";
                 matchBtn.textContent = "判定開始";
                 matchBtn.disabled = false;
@@ -163,11 +146,6 @@
                 statusArea.textContent = `カメラ起動エラー:\n${err.message}`;
             }
         }
-
-
-
-
-
 
         matchBtn.addEventListener('click', async () => {
             matchBtn.disabled = true;
@@ -193,8 +171,16 @@
 
             statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
 
+
+
+
             const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+
+
 
             canvas.toBlob(async (blob) => {
                 const formData = new FormData();
