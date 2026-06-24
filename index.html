@@ -127,13 +127,19 @@
         // =========================================================
         let audioUnlocked = false;
 
+
+
+
+
+
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
-                        width: { min: 640, ideal: 1920 },
-                        height: { min: 480, ideal: 1080 }
+                        // iPhoneカメラのネイティブ比率である 3:4（縦持ちなので横1200:縦1600など）を理想値にします
+                        width: { ideal: 1200 },
+                        height: { ideal: 1600 }
                     },
                     audio: false
                 });
@@ -151,6 +157,11 @@
                 statusArea.textContent = `カメラ起動エラー:\n${err.message}`;
             }
         }
+
+
+
+
+
 
         matchBtn.addEventListener('click', async () => {
             matchBtn.disabled = true;
