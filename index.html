@@ -90,7 +90,7 @@
         システムを初期化しています...
     </div>
 
-    <canvas id="capture-canvas" width="480" height="640"></canvas>
+    <canvas id="capture-canvas" width="640" height="480"></canvas>
 
     <audio id="guide-audio" controls style="width: 90%; max-width: 400px; margin-bottom: 15px;"></audio>
 
@@ -133,8 +133,8 @@
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
-                        width: 480,
-                        height: 640
+                        width: 640,
+                        height: 480
                     },
                     audio: false
                 });
