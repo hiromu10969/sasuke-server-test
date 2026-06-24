@@ -25,21 +25,28 @@
 
 
 
+
+
         #video-container {
             position: relative;
-            /* 左右の邪魔な余白を無くし、画面の横幅100%いっぱいに広げます */
             width: 100%;
+            /* 標準カメラと同じ「縦長3:4」の比率をコンテナ側に絶対的な基準として強制します */
+            aspect-ratio: 3 / 4;
             background-color: black;
             overflow: hidden;
         }
 
-
-
         video {
             width: 100%;
-            height: auto;
-            display: block;
+            height: 100%;
+            /* 比率を歪ませたり切り取ったりせず、3:4の枠内に綺麗に収めます */
+            object-fit: contain;
         }
+
+
+
+
+
 
         .btn {
             width: 90%;
