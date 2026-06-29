@@ -2,8 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <title>Sasuke Guide - Client Server</title>
 
@@ -28,7 +27,7 @@
             position: relative;
             width: 90%;
             max-width: 400px;
-            aspect-ratio: 4 / 3;
+            aspect-ratio: 3 / 4;
             background-color: black;
             border-radius: 8px;
             overflow: hidden;
@@ -37,7 +36,7 @@
         video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
         }
 
         .btn {
@@ -80,16 +79,10 @@
     <h1>旧豊田佐助邸 画像認識音声ガイド</h1>
 
     <div id="video-container">
-        <video id="camera-view"
-               autoplay
-               playsinline
-               muted>
-        </video>
+        <video id="camera-view" autoplay playsinline muted></video>
     </div>
 
-    <button id="match-btn"
-            class="btn"
-            disabled>
+    <button id="match-btn" class="btn" disabled>
         カメラ起動中...
     </button>
 
@@ -97,33 +90,16 @@
         システムを初期化しています...
     </div>
 
+    <canvas id="capture-canvas" width="640" height="480"></canvas>
 
-　　<canvas id="capture-canvas"
-    　　    width="640"
-        　　height="480">
-　　</canvas>
-
-　　<audio id="guide-audio"
-     　　  controls
-       　　style="
-           　　width:90%;
-           　　max-width:400px;
-           　　margin-bottom:15px;
-　　       ">
-　　</audio>
-
+    <audio id="guide-audio" controls style="width: 90%; max-width: 400px; margin-bottom: 15px;"></audio>
 
     <script>
-
         // =========================================================
         // 【超重要】
         // ngrok を起動するたびに毎回ここを書き換える
         // =========================================================
-
-        const SERVER_IP =
-            "https://gallantly-gosling-refrain.ngrok-free.dev";
-
-
+        const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
         const AUDIO_FILES = {
             "お気に入りの部屋": "production_audio/お気に入りの部屋.wav",
@@ -140,15 +116,11 @@
             "覆輪目地": "production_audio/覆輪目地.wav"
         };
 
-
-
         const video = document.getElementById('camera-view');
         const canvas = document.getElementById('capture-canvas');
         const matchBtn = document.getElementById('match-btn');
         const statusArea = document.getElementById('status-area');
         const audioPlayer = document.getElementById('guide-audio');
-
-
 
         // =========================================================
         // ★追加
@@ -156,249 +128,125 @@
         // =========================================================
         let audioUnlocked = false;
 
-
-
         async function initCamera() {
-
             try {
-
-                const stream =
-                    await navigator.mediaDevices.getUserMedia({
-
-                        video: {
-                            facingMode: "environment",
-                            width: 640,
-                            height: 480
-                        },
-
-                        audio: false
-                    });
-
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        width: 640,
+                        height: 480
+                    },
+                    audio: false
+                });
                 video.srcObject = stream;
-
-                statusArea.textContent =
-                    "準備完了。\n展示物を映して判定開始ボタンを押してください。";
-
-                matchBtn.textContent =
-                    "判定開始";
-
+                statusArea.textContent = "準備完了。\n展示物を映して判定開始ボタンを押してください。";
+                matchBtn.textContent = "判定開始";
                 matchBtn.disabled = false;
-
-            }
-            catch (err) {
-
-                statusArea.textContent =
-                    `カメラ起動エラー:\n${err.message}`;
+            } catch (err) {
+                statusArea.textContent = `カメラ起動エラー:\n${err.message}`;
             }
         }
 
-
-
         matchBtn.addEventListener('click', async () => {
-
             matchBtn.disabled = true;
-
-
 
             // =====================================================
             // ★追加
             // 初回クリック時だけ音声再生権限を取得
             // =====================================================
             if (!audioUnlocked) {
-
                 try {
-
-                    audioPlayer.src =
-                        AUDIO_FILES["ガス灯"];
-
+                    audioPlayer.src = AUDIO_FILES["ガス灯"];
                     audioPlayer.volume = 0;
-
                     await audioPlayer.play();
-
                     audioPlayer.pause();
-
                     audioPlayer.currentTime = 0;
-
                     audioPlayer.volume = 1;
-
                     audioUnlocked = true;
-
                     console.log("音声権限取得成功");
-
-                }
-                catch (err) {
-
-                    console.log(
-                        "音声権限取得失敗",
-                        err
-                    );
+                } catch (err) {
+                    console.log("音声権限取得失敗", err);
                 }
             }
 
+            statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
 
-
-            statusArea.textContent =
-                "サーバーへ画像送信中...\n照合しています...";
 
 
 
             const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            ctx.drawImage(
-                video,
-                0,
-                0,
-                canvas.width,
-                canvas.height
-            );
 
 
 
             canvas.toBlob(async (blob) => {
-
                 const formData = new FormData();
-
-                formData.append(
-                    'image',
-                    blob,
-                    'capture.jpg'
-                );
-
-
+                formData.append('image', blob, 'capture.jpg');
 
                 try {
-
-                    const response = await fetch(
-
-                        `${SERVER_IP}/predict`,
-
-                        {
-                            method: 'POST',
-                            body: formData
-                        }
-                    );
-
-
+                    const response = await fetch(`${SERVER_IP}/predict`, {
+                        method: 'POST',
+                        body: formData
+                    });
 
                     if (!response.ok) {
-
-                        throw new Error(
-                            `HTTPエラー: ${response.status}`
-                        );
+                        throw new Error(`HTTPエラー: ${response.status}`);
                     }
-
-
 
                     const result = await response.json();
-
-
-
                     let logText = "";
-
                     logText += "===== 判定結果 =====\n\n";
+                    logText += `判定: ${result.best_match}\n`;
+                    logText += `距離: ${result.distance.toFixed(4)}\n`;
+                    logText += `閾値: ${result.threshold}\n\n`;
 
-                    logText +=
-                        `判定: ${result.best_match}\n`;
-
-                    logText +=
-                        `距離: ${result.distance.toFixed(4)}\n`;
-
-                    logText +=
-                        `閾値: ${result.threshold}\n\n`;
-
-
+                    // =====================
+                    // ランキング表示
+                    // =====================
+                    if (result.ranking) {
+                        logText += "===== ランキング =====\n\n";
+                        result.ranking.forEach((item, index) => {
+                            logText += `${index + 1}位 ${item.name}\n` +
+                                       `最小値: ${item.min.toFixed(4)}\n` +
+                                       `平均値: ${item.avg.toFixed(4)}\n` +
+                                       `登録枚数: ${item.count}\n\n`;
+                        });
+                    }
 
                     if (result.success) {
-
-                        logText +=
-                            "判定成功\n音声を再生します\n";
-
-
+                        logText += "判定成功\n音声を再生します\n";
 
                         if (AUDIO_FILES[result.best_match]) {
-
-                            const audioPath =
-                                AUDIO_FILES[result.best_match];
-
-                            logText +=
-                                `音声ファイル: ${audioPath}\n`;
-
+                            const audioPath = AUDIO_FILES[result.best_match];
+                            logText += `音声ファイル: ${audioPath}\n`;
                             audioPlayer.src = audioPath;
-
                             audioPlayer.play()
-
-                            .then(() => {
-
-                                statusArea.textContent =
-                                    logText +
-                                    "\n再生成功";
-                            })
-
-                            .catch((err) => {
-
-                                statusArea.textContent =
-                                    logText +
-                                    "\n再生失敗\n" +
-                                    err.name +
-                                    "\n" +
-                                    err.message;
-                            });
+                                .then(() => {
+                                    statusArea.textContent = logText + "\n再生成功";
+                                })
+                                .catch((err) => {
+                                    statusArea.textContent = logText + "\n再生失敗\n" + err.name + "\n" + err.message;
+                                });
+                        } else {
+                            logText += "音声ファイルが見つかりません";
+                            statusArea.textContent = logText;
                         }
-                        else {
-
-                            logText +=
-                                "音声ファイルが見つかりません";
-
-                            statusArea.textContent =
-                                logText;
-                        }
-
+                    } else {
+                        logText += "判定に失敗しました\n角度を変えて撮影し直してください";
+                        statusArea.textContent = logText;
                     }
-                    else {
-
-                        logText +=
-                            "判定に失敗しました\n角度を変えて撮影し直してください";
-
-                        statusArea.textContent =
-                            logText;
-                    }
-
-                }
-                catch (err) {
-
-                    statusArea.textContent =
-`
-通信エラー
-
-■ 確認すること
-
-1. app.py が起動しているか
-
-2. ngrok が起動しているか
-
-3. SERVER_IP が正しいか
-
-4. Flask が落ちていないか
-
-詳細:
-${err.message}
-`;
-                }
-                finally {
-
+                } catch (err) {
+                    statusArea.textContent = `\n通信エラー\n\n■ 確認すること\n\n1. app.py が起動しているか\n2. ngrok が起動しているか\n3. SERVER_IP が正しいか\n4. Flask が落ちていないか\n\n詳細:\n${err.message}\n`;
+                } finally {
                     matchBtn.disabled = false;
                 }
-
             }, 'image/jpeg', 0.8);
         });
 
-
-
-        window.addEventListener(
-            'DOMContentLoaded',
-            initCamera
-        );
-
+        window.addEventListener('DOMContentLoaded', initCamera);
     </script>
 
 </body>
