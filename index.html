@@ -43,7 +43,7 @@
             width: 90%;
             max-width: 400px;
             padding: 15px;
-            margin: 15px 0;
+            margin: 15px 0 10px 0;
             background-color: #28a745;
             color: white;
             border: none;
@@ -57,6 +57,14 @@
             background-color: #555;
         }
 
+        /* Spotify プレイヤーの設置エリア */
+        #embed-iframe-container {
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 15px;
+            min-height: 152px;
+        }
+
         #status-area {
             width: 85%;
             max-width: 380px;
@@ -66,15 +74,7 @@
             font-size: 0.9rem;
             white-space: pre-wrap;
             border: 1px solid #333;
-            margin-bottom: 15px;
-        }
-
-        /* Spotify プレイヤーの設置エリア */
-        #embed-iframe-container {
-            width: 90%;
-            max-width: 400px;
             margin-bottom: 20px;
-            min-height: 152px;
         }
 
         canvas {
@@ -98,13 +98,13 @@
         カメラ起動中...
     </button>
 
-    <div id="status-area">
-        システムを初期化しています...
-    </div>
-
-    <!-- Spotify iFrame プレイヤーが生成される場所 -->
+    <!-- Spotify iFrame プレイヤーが生成される場所（ボタン直下に移動） -->
     <div id="embed-iframe-container">
         <div id="embed-iframe"></div>
+    </div>
+
+    <div id="status-area">
+        システムを初期化しています...
     </div>
 
     <canvas id="capture-canvas" width="640" height="480"></canvas>
@@ -233,7 +233,7 @@
                     }
 
                     if (result.success) {
-                        logText += "判定成功\nSpotify音声を再生します\n";
+                        logText += "判定成功\n下のプレイヤーの「▶再生」ボタンを押してください\n";
 
                         let episodeUri = SPOTIFY_EPISODES[result.best_match];
 
@@ -252,7 +252,7 @@
                             embedController.loadUri(episodeUri);
                             embedController.play();
                             
-                            statusArea.textContent = logText + "\n再生開始処理完了";
+                            statusArea.textContent = logText + "\n読み込み完了";
                         } else {
                             logText += "Spotify URI または Player が見つかりません";
                             statusArea.textContent = logText;
