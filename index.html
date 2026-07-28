@@ -118,7 +118,6 @@
 
         // =========================================================
         // 各展示物に対応する Spotify ポッドキャストのエピソード URI マップ
-        // ※ ID（spotify:episode:xxxx の xxxx の部分）をご自身の実際のエピソードIDに書き換えてください
         // =========================================================
         const SPOTIFY_EPISODES = {
             "お気に入りの部屋": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
@@ -148,11 +147,20 @@
         // =========================================================
         window.onSpotifyIframeApiReady = (IFrameAPI) => {
             const element = document.getElementById('embed-iframe');
+            
+            // 初期表示用（ガス灯のURLからID抽出）
+            let initialUri = SPOTIFY_EPISODES["ガス灯"];
+            if (initialUri && initialUri.startsWith("http")) {
+                const initialId = initialUri.split("/episode/")[1]?.split("?")[0];
+                if (initialId) {
+                    initialUri = `spotify:episode:${initialId}`;
+                }
+            }
+
             const options = {
                 width: '100%',
                 height: '152',
-                // 初期状態としてデフォルトの曲/ポッドキャストを指定（空読み込み用）
-                uri: SPOTIFY_EPISODES["ガス灯"] 
+                uri: initialUri 
             };
             
             const callback = (EmbedController) => {
@@ -227,7 +235,15 @@
                     if (result.success) {
                         logText += "判定成功\nSpotify音声を再生します\n";
 
-                        const episodeUri = SPOTIFY_EPISODES[result.best_match];
+                        let episodeUri = SPOTIFY_EPISODES[result.best_match];
+
+                        // Web URL (https://open.spotify.com/episode/ID?xxx) を spotify:episode:ID に自動変換
+                        if (episodeUri && episodeUri.startsWith("http")) {
+                            const episodeId = episodeUri.split("/episode/")[1]?.split("?")[0];
+                            if (episodeId) {
+                                episodeUri = `spotify:episode:${episodeId}`;
+                            }
+                        }
 
                         if (episodeUri && embedController) {
                             logText += `URI: ${episodeUri}\n`;
