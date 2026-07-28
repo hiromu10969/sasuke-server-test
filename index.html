@@ -63,7 +63,7 @@
             max-width: 400px;
             margin-bottom: 15px;
             min-height: 152px;
-            display: none; /* ★判定成功まで非表示にする */
+            display: none;
         }
 
         #status-area {
@@ -150,19 +150,12 @@
         window.onSpotifyIframeApiReady = (IFrameAPI) => {
             const element = document.getElementById('embed-iframe');
             
-            // バックグラウンドでコントローラーのみ生成（画面には出さない）
-            let initialUri = SPOTIFY_EPISODES["ガス灯"];
-            if (initialUri && initialUri.startsWith("http")) {
-                const initialId = initialUri.split("/episode/")[1]?.split("?")[0];
-                if (initialId) {
-                    initialUri = `spotify:episode:${initialId}`;
-                }
-            }
-
+            // ★初期化時は特定エピソードではなくポッドキャスト番組全体のリンク（または最初のエピソード）を設定
+            // 判定成功時に loadUri されてから画面表示するためチラつきを防げます
             const options = {
                 width: '100%',
                 height: '152',
-                uri: initialUri 
+                uri: 'spotify:episode:78j0VmMwSKyguwanEBLbEv' 
             };
             
             const callback = (EmbedController) => {
@@ -239,7 +232,7 @@
 
                         let episodeUri = SPOTIFY_EPISODES[result.best_match];
 
-                        // Web URL (https://open.spotify.com/episode/ID?xxx) を spotify:episode:ID に自動変換
+                        // Web URL を spotify:episode:ID に自動変換
                         if (episodeUri && episodeUri.startsWith("http")) {
                             const episodeId = episodeUri.split("/episode/")[1]?.split("?")[0];
                             if (episodeId) {
@@ -250,12 +243,14 @@
                         if (episodeUri && embedController) {
                             logText += `URI: ${episodeUri}\n`;
                             
-                            // ★判定成功時のみプレイヤーを表示させる
-                            playerContainer.style.display = 'block';
-
-                            // 該当エピソードを読み込んで再生
+                            // ★新しいエピソードの読み込みを指示
                             embedController.loadUri(episodeUri);
                             embedController.play();
+
+                            // ★読み込み時間をわずかに確保してから表示させることで、一瞬前の画面が映るのを防ぐ
+                            setTimeout(() => {
+                                playerContainer.style.display = 'block';
+                            }, 300);
                             
                             statusArea.textContent = logText + "\n読み込み完了";
                         } else {
