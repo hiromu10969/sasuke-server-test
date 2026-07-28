@@ -57,7 +57,7 @@
             background-color: #555;
         }
 
-        /* Spotify プレイヤーの設置エリア（初期状態は非表示） */
+        /* Spotify プレイヤーの設置エリア */
         #embed-iframe-container {
             width: 90%;
             max-width: 400px;
@@ -141,29 +141,13 @@
         const statusArea = document.getElementById('status-area');
         const playerContainer = document.getElementById('embed-iframe-container');
 
-        // Spotify Controller 用の変数
+        let spotifyIFrameAPI = null;
         let embedController = null;
 
-        // =========================================================
-        // Spotify iFrame API 初期化
-        // =========================================================
+        // Spotify API の準備完了時（APIライブラリの保持のみ）
         window.onSpotifyIframeApiReady = (IFrameAPI) => {
-            const element = document.getElementById('embed-iframe');
-            
-            // ★初期化時は特定エピソードではなくポッドキャスト番組全体のリンク（または最初のエピソード）を設定
-            // 判定成功時に loadUri されてから画面表示するためチラつきを防げます
-            const options = {
-                width: '100%',
-                height: '152',
-                uri: 'spotify:episode:78j0VmMwSKyguwanEBLbEv' 
-            };
-            
-            const callback = (EmbedController) => {
-                embedController = EmbedController;
-                console.log("Spotify Controller 準備完了");
-            };
-            
-            IFrameAPI.createController(element, options, callback);
+            spotifyIFrameAPI = IFrameAPI;
+            console.log("Spotify IFrame API 準備完了");
         };
 
         async function initCamera() {
@@ -182,6 +166,35 @@
                 matchBtn.disabled = false;
             } catch (err) {
                 statusArea.textContent = `カメラ起動エラー:\n${err.message}`;
+            }
+        }
+
+        // Spotify プレイヤーを表示・再生制御する関数
+        function playSpotifyEpisode(targetUri) {
+            if (!spotifyIFrameAPI) {
+                console.error("Spotify API 未準備");
+                return;
+            }
+
+            playerContainer.style.display = 'block';
+
+            // 既にコントローラーが生成されている場合は loadUri で切り替え
+            if (embedController) {
+                embedController.loadUri(targetUri);
+                embedController.play();
+            } else {
+                // 初回判定成功時に初めてプレイヤーを動的生成する（チラつき100%防止）
+                const element = document.getElementById('embed-iframe');
+                const options = {
+                    width: '100%',
+                    height: '152',
+                    uri: targetUri
+                };
+
+                spotifyIFrameAPI.createController(element, options, (Controller) => {
+                    embedController = Controller;
+                    embedController.play();
+                });
             }
         }
 
@@ -240,17 +253,11 @@
                             }
                         }
 
-                        if (episodeUri && embedController) {
+                        if (episodeUri && spotifyIFrameAPI) {
                             logText += `URI: ${episodeUri}\n`;
                             
-                            // ★新しいエピソードの読み込みを指示
-                            embedController.loadUri(episodeUri);
-                            embedController.play();
-
-                            // ★読み込み時間をわずかに確保してから表示させることで、一瞬前の画面が映るのを防ぐ
-                            setTimeout(() => {
-                                playerContainer.style.display = 'block';
-                            }, 300);
+                            // 判定成功したエピソードのみでプレイヤーをロード・表示
+                            playSpotifyEpisode(episodeUri);
                             
                             statusArea.textContent = logText + "\n読み込み完了";
                         } else {
