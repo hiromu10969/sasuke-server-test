@@ -57,12 +57,13 @@
             background-color: #555;
         }
 
-        /* Spotify プレイヤーの設置エリア */
+        /* Spotify プレイヤーの設置エリア（初期状態は非表示） */
         #embed-iframe-container {
             width: 90%;
             max-width: 400px;
             margin-bottom: 15px;
             min-height: 152px;
+            display: none; /* ★判定成功まで非表示にする */
         }
 
         #status-area {
@@ -98,7 +99,7 @@
         カメラ起動中...
     </button>
 
-    <!-- Spotify iFrame プレイヤーが生成される場所（ボタン直下に移動） -->
+    <!-- Spotify iFrame プレイヤーが生成される場所 -->
     <div id="embed-iframe-container">
         <div id="embed-iframe"></div>
     </div>
@@ -138,6 +139,7 @@
         const canvas = document.getElementById('capture-canvas');
         const matchBtn = document.getElementById('match-btn');
         const statusArea = document.getElementById('status-area');
+        const playerContainer = document.getElementById('embed-iframe-container');
 
         // Spotify Controller 用の変数
         let embedController = null;
@@ -148,7 +150,7 @@
         window.onSpotifyIframeApiReady = (IFrameAPI) => {
             const element = document.getElementById('embed-iframe');
             
-            // 初期表示用（ガス灯のURLからID抽出）
+            // バックグラウンドでコントローラーのみ生成（画面には出さない）
             let initialUri = SPOTIFY_EPISODES["ガス灯"];
             if (initialUri && initialUri.startsWith("http")) {
                 const initialId = initialUri.split("/episode/")[1]?.split("?")[0];
@@ -248,6 +250,9 @@
                         if (episodeUri && embedController) {
                             logText += `URI: ${episodeUri}\n`;
                             
+                            // ★判定成功時のみプレイヤーを表示させる
+                            playerContainer.style.display = 'block';
+
                             // 該当エピソードを読み込んで再生
                             embedController.loadUri(episodeUri);
                             embedController.play();
