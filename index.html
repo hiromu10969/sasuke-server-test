@@ -43,7 +43,7 @@
             width: 90%;
             max-width: 400px;
             padding: 15px;
-            margin: 15px 0 10px 0;
+            margin: 15px 0;
             background-color: #28a745;
             color: white;
             border: none;
@@ -57,15 +57,6 @@
             background-color: #555;
         }
 
-        /* Spotify プレイヤーの設置エリア */
-        #embed-iframe-container {
-            width: 90%;
-            max-width: 400px;
-            margin-bottom: 15px;
-            min-height: 152px;
-            display: none;
-        }
-
         #status-area {
             width: 85%;
             max-width: 380px;
@@ -75,16 +66,12 @@
             font-size: 0.9rem;
             white-space: pre-wrap;
             border: 1px solid #333;
-            margin-bottom: 20px;
         }
 
         canvas {
             display: none;
         }
     </style>
-    
-    <!-- Spotify iFrame API のスクリプト -->
-    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 </head>
 
 <body>
@@ -99,16 +86,13 @@
         カメラ起動中...
     </button>
 
-    <!-- Spotify iFrame プレイヤーが生成される場所 -->
-    <div id="embed-iframe-container">
-        <div id="embed-iframe"></div>
-    </div>
-
     <div id="status-area">
         システムを初期化しています...
     </div>
 
     <canvas id="capture-canvas" width="640" height="480"></canvas>
+
+    <audio id="guide-audio" controls style="width: 90%; max-width: 400px; margin-bottom: 15px;"></audio>
 
     <script>
         // =========================================================
@@ -117,38 +101,32 @@
         // =========================================================
         const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
-        // =========================================================
-        // 各展示物に対応する Spotify ポッドキャストのエピソード URI マップ
-        // =========================================================
-        const SPOTIFY_EPISODES = {
-            "お気に入りの部屋": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "ガス灯": "https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e",
-            "きんだみ襖": "https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d",
-            "シャンデリア": "https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa",
-            "ステレオ": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "トイレ": "https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3",
-            "引手": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "夏障子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "換気口": "https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf",
-            "筋交": "https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3",
-            "波型無双連子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "覆輪目地": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b"
+        const AUDIO_FILES = {
+            "お気に入りの部屋": "production_audio/お気に入りの部屋.wav",
+            "ガス灯": "production_audio/ガス灯.wav",
+            "きんだみ襖": "production_audio/きんだみ襖.wav",
+            "シャンデリア": "production_audio/シャンデリア.wav",
+            "ステレオ": "production_audio/ステレオ.wav",
+            "トイレ": "production_audio/トイレ.wav",
+            "引手": "production_audio/引手.wav",
+            "夏障子": "production_audio/夏障子.wav",
+            "換気口": "production_audio/換気口.wav",
+            "筋交": "production_audio/筋交.wav",
+            "波型無双連子": "production_audio/波型無双連子.wav",
+            "覆輪目地": "production_audio/覆輪目地.wav"
         };
 
         const video = document.getElementById('camera-view');
         const canvas = document.getElementById('capture-canvas');
         const matchBtn = document.getElementById('match-btn');
         const statusArea = document.getElementById('status-area');
-        const playerContainer = document.getElementById('embed-iframe-container');
+        const audioPlayer = document.getElementById('guide-audio');
 
-        let spotifyIFrameAPI = null;
-        let embedController = null;
-
-        // Spotify API の準備完了時（APIライブラリの保持のみ）
-        window.onSpotifyIframeApiReady = (IFrameAPI) => {
-            spotifyIFrameAPI = IFrameAPI;
-            console.log("Spotify IFrame API 準備完了");
-        };
+        // =========================================================
+        // ★追加
+        // 最初のクリックで音声再生権限を取得
+        // =========================================================
+        let audioUnlocked = false;
 
         async function initCamera() {
             try {
@@ -169,44 +147,40 @@
             }
         }
 
-        // Spotify プレイヤーを表示・再生制御する関数
-        function playSpotifyEpisode(targetUri) {
-            if (!spotifyIFrameAPI) {
-                console.error("Spotify API 未準備");
-                return;
-            }
-
-            playerContainer.style.display = 'block';
-
-            // 既にコントローラーが生成されている場合は loadUri で切り替え
-            if (embedController) {
-                embedController.loadUri(targetUri);
-                embedController.play();
-            } else {
-                // 初回判定成功時に初めてプレイヤーを動的生成する（チラつき100%防止）
-                const element = document.getElementById('embed-iframe');
-                const options = {
-                    width: '100%',
-                    height: '152',
-                    uri: targetUri
-                };
-
-                spotifyIFrameAPI.createController(element, options, (Controller) => {
-                    embedController = Controller;
-                    embedController.play();
-                });
-            }
-        }
-
         matchBtn.addEventListener('click', async () => {
             matchBtn.disabled = true;
 
+            // =====================================================
+            // ★追加
+            // 初回クリック時だけ音声再生権限を取得
+            // =====================================================
+            if (!audioUnlocked) {
+                try {
+                    audioPlayer.src = AUDIO_FILES["ガス灯"];
+                    audioPlayer.volume = 0;
+                    await audioPlayer.play();
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
+                    audioPlayer.volume = 1;
+                    audioUnlocked = true;
+                    console.log("音声権限取得成功");
+                } catch (err) {
+                    console.log("音声権限取得失敗", err);
+                }
+            }
+
             statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
+
+
+
 
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+
+
 
             canvas.toBlob(async (blob) => {
                 const formData = new FormData();
@@ -229,7 +203,9 @@
                     logText += `距離: ${result.distance.toFixed(4)}\n`;
                     logText += `閾値: ${result.threshold}\n\n`;
 
+                    // =====================
                     // ランキング表示
+                    // =====================
                     if (result.ranking) {
                         logText += "===== ランキング =====\n\n";
                         result.ranking.forEach((item, index) => {
@@ -241,27 +217,21 @@
                     }
 
                     if (result.success) {
-                        logText += "判定成功\n下のプレイヤーの「▶再生」ボタンを押してください\n";
+                        logText += "判定成功\n音声を再生します\n";
 
-                        let episodeUri = SPOTIFY_EPISODES[result.best_match];
-
-                        // Web URL を spotify:episode:ID に自動変換
-                        if (episodeUri && episodeUri.startsWith("http")) {
-                            const episodeId = episodeUri.split("/episode/")[1]?.split("?")[0];
-                            if (episodeId) {
-                                episodeUri = `spotify:episode:${episodeId}`;
-                            }
-                        }
-
-                        if (episodeUri && spotifyIFrameAPI) {
-                            logText += `URI: ${episodeUri}\n`;
-                            
-                            // 判定成功したエピソードのみでプレイヤーをロード・表示
-                            playSpotifyEpisode(episodeUri);
-                            
-                            statusArea.textContent = logText + "\n読み込み完了";
+                        if (AUDIO_FILES[result.best_match]) {
+                            const audioPath = AUDIO_FILES[result.best_match];
+                            logText += `音声ファイル: ${audioPath}\n`;
+                            audioPlayer.src = audioPath;
+                            audioPlayer.play()
+                                .then(() => {
+                                    statusArea.textContent = logText + "\n再生成功";
+                                })
+                                .catch((err) => {
+                                    statusArea.textContent = logText + "\n再生失敗\n" + err.name + "\n" + err.message;
+                                });
                         } else {
-                            logText += "Spotify URI または Player が見つかりません";
+                            logText += "音声ファイルが見つかりません";
                             statusArea.textContent = logText;
                         }
                     } else {
