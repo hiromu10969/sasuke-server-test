@@ -7,6 +7,7 @@
     <title>Sasuke Guide - Client Server</title>
 
     <style>
+
         body {
             font-family: sans-serif;
             margin: 0;
@@ -43,7 +44,7 @@
             width: 90%;
             max-width: 400px;
             padding: 15px;
-            margin: 15px 0 10px 0;
+            margin: 15px 0;
             background-color: #28a745;
             color: white;
             border: none;
@@ -57,15 +58,6 @@
             background-color: #555;
         }
 
-        /* Spotify プレイヤーの設置エリア */
-        #embed-iframe-container {
-            width: 90%;
-            max-width: 400px;
-            margin-bottom: 15px;
-            min-height: 152px;
-            display: none;
-        }
-
         #status-area {
             width: 85%;
             max-width: 380px;
@@ -75,16 +67,43 @@
             font-size: 0.9rem;
             white-space: pre-wrap;
             border: 1px solid #333;
-            margin-bottom: 20px;
+        }
+
+        #audio-results {
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 15px;
+        }
+
+        .audio-card {
+            margin-bottom: 15px;
+            padding: 12px;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        .audio-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .audio-distance {
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            color: #cccccc;
+        }
+
+        .audio-card audio {
+            width: 100%;
         }
 
         canvas {
             display: none;
         }
+
     </style>
-    
-    <!-- Spotify iFrame API のスクリプト -->
-    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 </head>
 
 <body>
@@ -99,184 +118,384 @@
         カメラ起動中...
     </button>
 
-    <!-- Spotify iFrame プレイヤーが生成される場所 -->
-    <div id="embed-iframe-container">
-        <div id="embed-iframe"></div>
-    </div>
-
     <div id="status-area">
         システムを初期化しています...
     </div>
 
     <canvas id="capture-canvas" width="640" height="480"></canvas>
 
+    <!--
+        自動判定なら1位だけ、
+        自信がない場合は上位3つの音声をここに表示する
+    -->
+    <div id="audio-results"></div>
+
     <script>
+
         // =========================================================
-        // 【超重要】
         // ngrok を起動するたびに毎回ここを書き換える
         // =========================================================
         const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
         // =========================================================
-        // 各展示物に対応する Spotify ポッドキャストのエピソード URI マップ
+        // 音声ファイル
         // =========================================================
-        const SPOTIFY_EPISODES = {
-            "お気に入りの部屋": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "ガス灯": "https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e",
-            "きんだみ襖": "https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d",
-            "シャンデリア": "https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa",
-            "ステレオ": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "トイレ": "https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3",
-            "引手": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "夏障子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "換気口": "https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf",
-            "筋交": "https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3",
-            "波型無双連子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "覆輪目地": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b"
+        const AUDIO_FILES = {
+
+            "お気に入りの部屋": "production_audio/お気に入りの部屋.wav",
+            "ガス灯": "production_audio/ガス灯.wav",
+            "きんだみ襖": "production_audio/きんだみ襖.wav",
+            "シャンデリア": "production_audio/シャンデリア.wav",
+            "ステレオ": "production_audio/ステレオ.wav",
+            "トイレ": "production_audio/トイレ.wav",
+            "引手": "production_audio/引手.wav",
+            "夏障子": "production_audio/夏障子.wav",
+            "換気口": "production_audio/換気口.wav",
+            "筋交": "production_audio/筋交.wav",
+            "波型無双連子": "production_audio/波型無双連子.wav",
+            "覆輪目地": "production_audio/覆輪目地.wav"
         };
 
         const video = document.getElementById('camera-view');
         const canvas = document.getElementById('capture-canvas');
         const matchBtn = document.getElementById('match-btn');
         const statusArea = document.getElementById('status-area');
-        const playerContainer = document.getElementById('embed-iframe-container');
+        const audioResults = document.getElementById('audio-results');
 
-        let spotifyIFrameAPI = null;
-        let embedController = null;
-
-        // Spotify API の準備完了時（APIライブラリの保持のみ）
-        window.onSpotifyIframeApiReady = (IFrameAPI) => {
-            spotifyIFrameAPI = IFrameAPI;
-            console.log("Spotify IFrame API 準備完了");
-        };
+        // =========================================================
+        // 最初のクリックで音声再生権限を取得
+        // =========================================================
+        let audioUnlocked = false;
 
         async function initCamera() {
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment",
-                        width: 640,
-                        height: 480
-                    },
-                    audio: false
-                });
-                video.srcObject = stream;
-                statusArea.textContent = "準備完了。\n展示物を映して判定開始ボタンを押してください。";
-                matchBtn.textContent = "判定開始";
-                matchBtn.disabled = false;
-            } catch (err) {
-                statusArea.textContent = `カメラ起動エラー:\n${err.message}`;
-            }
-        }
 
-        // Spotify プレイヤーを表示・再生制御する関数
-        function playSpotifyEpisode(targetUri) {
-            if (!spotifyIFrameAPI) {
-                console.error("Spotify API 未準備");
-                return;
-            }
+                const stream =
+                    await navigator.mediaDevices.getUserMedia({
 
-            playerContainer.style.display = 'block';
+                        video: {
+                            facingMode: "environment",
+                            width: 640,
+                            height: 480
+                        },
 
-            // 既にコントローラーが生成されている場合は loadUri で切り替え
-            if (embedController) {
-                embedController.loadUri(targetUri);
-                embedController.play();
-            } else {
-                // 初回判定成功時に初めてプレイヤーを動的生成する（チラつき100%防止）
-                const element = document.getElementById('embed-iframe');
-                const options = {
-                    width: '100%',
-                    height: '152',
-                    uri: targetUri
-                };
-
-                spotifyIFrameAPI.createController(element, options, (Controller) => {
-                    embedController = Controller;
-                    embedController.play();
-                });
-            }
-        }
-
-        matchBtn.addEventListener('click', async () => {
-            matchBtn.disabled = true;
-
-            statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
-
-            const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob(async (blob) => {
-                const formData = new FormData();
-                formData.append('image', blob, 'capture.jpg');
-
-                try {
-                    const response = await fetch(`${SERVER_IP}/predict`, {
-                        method: 'POST',
-                        body: formData
+                        audio: false
                     });
 
-                    if (!response.ok) {
-                        throw new Error(`HTTPエラー: ${response.status}`);
-                    }
+                video.srcObject = stream;
 
-                    const result = await response.json();
-                    let logText = "";
-                    logText += "===== 判定結果 =====\n\n";
-                    logText += `判定: ${result.best_match}\n`;
-                    logText += `距離: ${result.distance.toFixed(4)}\n`;
-                    logText += `閾値: ${result.threshold}\n\n`;
+                statusArea.textContent =
+                    "準備完了。\n展示物を映して判定開始ボタンを押してください。";
 
-                    // ランキング表示
-                    if (result.ranking) {
-                        logText += "===== ランキング =====\n\n";
-                        result.ranking.forEach((item, index) => {
-                            logText += `${index + 1}位 ${item.name}\n` +
-                                       `最小値: ${item.min.toFixed(4)}\n` +
-                                       `平均値: ${item.avg.toFixed(4)}\n` +
-                                       `登録枚数: ${item.count}\n\n`;
-                        });
-                    }
+                matchBtn.textContent = "判定開始";
+                matchBtn.disabled = false;
 
-                    if (result.success) {
-                        logText += "判定成功\n下のプレイヤーの「▶再生」ボタンを押してください\n";
+            } catch (err) {
 
-                        let episodeUri = SPOTIFY_EPISODES[result.best_match];
+                statusArea.textContent =
+                    `カメラ起動エラー:\n${err.message}`;
+            }
+        }
 
-                        // Web URL を spotify:episode:ID に自動変換
-                        if (episodeUri && episodeUri.startsWith("http")) {
-                            const episodeId = episodeUri.split("/episode/")[1]?.split("?")[0];
-                            if (episodeId) {
-                                episodeUri = `spotify:episode:${episodeId}`;
-                            }
-                        }
+        // =========================================================
+        // 音声プレイヤーを1つ作る関数
+        // =========================================================
+        function createAudioCard(
+            rank,
+            item
+        ) {
 
-                        if (episodeUri && spotifyIFrameAPI) {
-                            logText += `URI: ${episodeUri}\n`;
-                            
-                            // 判定成功したエピソードのみでプレイヤーをロード・表示
-                            playSpotifyEpisode(episodeUri);
-                            
-                            statusArea.textContent = logText + "\n読み込み完了";
-                        } else {
-                            logText += "Spotify URI または Player が見つかりません";
-                            statusArea.textContent = logText;
-                        }
-                    } else {
-                        logText += "判定に失敗しました\n角度を変えて撮影し直してください";
-                        statusArea.textContent = logText;
-                    }
+            const audioPath =
+                AUDIO_FILES[item.name];
+
+            // 音声ファイルが登録されていなければ表示しない
+            if (!audioPath) {
+                return null;
+            }
+
+            const wrapper =
+                document.createElement("div");
+
+            wrapper.className =
+                "audio-card";
+
+            const title =
+                document.createElement("div");
+
+            title.className =
+                "audio-title";
+
+            title.textContent =
+                `${rank}位：${item.name}`;
+
+            const distance =
+                document.createElement("div");
+
+            distance.className =
+                "audio-distance";
+
+            distance.textContent =
+                `距離：${item.min.toFixed(4)}`;
+
+            const audio =
+                document.createElement("audio");
+
+            audio.controls = true;
+            audio.src = audioPath;
+
+            wrapper.appendChild(title);
+            wrapper.appendChild(distance);
+            wrapper.appendChild(audio);
+
+            return wrapper;
+        }
+
+        // =========================================================
+        // 判定開始
+        // =========================================================
+        matchBtn.addEventListener('click', async () => {
+
+            matchBtn.disabled = true;
+
+            // 前回の音声候補を消す
+            audioResults.innerHTML = "";
+
+            // =====================================================
+            // 初回クリック時だけ音声再生権限を取得
+            // =====================================================
+            if (!audioUnlocked) {
+
+                try {
+
+                    const testAudio =
+                        new Audio(AUDIO_FILES["ガス灯"]);
+
+                    testAudio.volume = 0;
+
+                    await testAudio.play();
+
+                    testAudio.pause();
+                    testAudio.currentTime = 0;
+
+                    audioUnlocked = true;
+
+                    console.log(
+                        "音声権限取得成功"
+                    );
+
                 } catch (err) {
-                    statusArea.textContent = `\n通信エラー\n\n■ 確認すること\n\n1. app.py が起動しているか\n2. ngrok が起動しているか\n3. SERVER_IP が正しいか\n4. Flask が落ちていないか\n\n詳細:\n${err.message}\n`;
+
+                    console.log(
+                        "音声権限取得失敗",
+                        err
+                    );
+                }
+            }
+
+            statusArea.textContent =
+                "サーバーへ画像送信中...\n照合しています...";
+
+            const ctx =
+                canvas.getContext('2d');
+
+            canvas.width =
+                video.videoWidth;
+
+            canvas.height =
+                video.videoHeight;
+
+            ctx.drawImage(
+                video,
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+
+            canvas.toBlob(async (blob) => {
+
+                const formData =
+                    new FormData();
+
+                formData.append(
+                    'image',
+                    blob,
+                    'capture.jpg'
+                );
+
+                try {
+
+                    const response =
+                        await fetch(
+                            `${SERVER_IP}/predict`,
+                            {
+                                method: 'POST',
+                                body: formData
+                            }
+                        );
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            `HTTPエラー: ${response.status}`
+                        );
+                    }
+
+                    const result =
+                        await response.json();
+
+                    let logText = "";
+
+                    logText +=
+                        "===== 判定結果 =====\n\n";
+
+                    logText +=
+                        `1位: ${result.best_match}\n`;
+
+                    logText +=
+                        `距離: ${result.distance.toFixed(4)}\n`;
+
+                    logText +=
+                        `1つ目の閾値: ${result.threshold}\n`;
+
+                    // 2位が存在する場合
+                    if (result.gap !== null) {
+
+                        logText +=
+                            `1位と2位の距離差: ${result.gap.toFixed(4)}\n`;
+
+                        logText +=
+                            `2つ目の閾値: ${result.gap_threshold}\n`;
+                    }
+
+                    logText += "\n";
+
+                    // =================================================
+                    // まず1つ目の閾値を確認
+                    // =================================================
+                    if (!result.success) {
+
+                        logText +=
+                            "判定に失敗しました\n";
+
+                        logText +=
+                            "距離が閾値以上です。\n";
+
+                        logText +=
+                            "角度を変えて撮影し直してください。";
+
+                        statusArea.textContent =
+                            logText;
+
+                        audioResults.innerHTML =
+                            "";
+
+                        return;
+                    }
+
+                    // =================================================
+                    // 1つ目の閾値はクリア
+                    // =================================================
+
+                    // -------------------------------------------------
+                    // 2つ目の閾値：
+                    // 1位と2位の距離差が0.03未満
+                    // → 自信がないため上位3つを表示
+                    // -------------------------------------------------
+                    if (result.low_confidence) {
+
+                        logText +=
+                            "距離差が小さいため、上位3件を表示します。\n";
+
+                        // 上位3件
+                        const top3 =
+                            result.ranking.slice(0, 3);
+
+                        top3.forEach(
+                            (item, index) => {
+
+                                const card =
+                                    createAudioCard(
+                                        index + 1,
+                                        item
+                                    );
+
+                                if (card) {
+
+                                    audioResults.appendChild(
+                                        card
+                                    );
+                                }
+                            }
+                        );
+
+                        statusArea.textContent =
+                            logText +
+                            "\n候補から聞きたい音声を選択してください。";
+
+                    } else {
+
+                        // -------------------------------------------------
+                        // 2つ目の閾値もクリア
+                        // → 1位を自動採用
+                        // -------------------------------------------------
+                        logText +=
+                            "距離差が十分に大きいため、1位を採用します。\n";
+
+                        const bestItem =
+                            result.ranking[0];
+
+                        const card =
+                            createAudioCard(
+                                1,
+                                bestItem
+                            );
+
+                        if (card) {
+
+                            audioResults.appendChild(
+                                card
+                            );
+
+                            statusArea.textContent =
+                                logText +
+                                "\n1位の音声ガイドを表示しました。\n" +
+                                "再生ボタンを押してください。";
+
+                        } else {
+
+                            statusArea.textContent =
+                                logText +
+                                "\n音声ファイルが見つかりません。";
+                        }
+                    }
+
+                } catch (err) {
+
+                    statusArea.textContent =
+                        `\n通信エラー\n\n` +
+                        `■ 確認すること\n\n` +
+                        `1. app.py が起動しているか\n` +
+                        `2. ngrok が起動しているか\n` +
+                        `3. SERVER_IP が正しいか\n` +
+                        `4. Flask が落ちていないか\n\n` +
+                        `詳細:\n${err.message}\n`;
+
                 } finally {
+
                     matchBtn.disabled = false;
                 }
+
             }, 'image/jpeg', 0.8);
+
         });
 
-        window.addEventListener('DOMContentLoaded', initCamera);
+        window.addEventListener(
+            'DOMContentLoaded',
+            initCamera
+        );
+
     </script>
 
 </body>
