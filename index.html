@@ -7,7 +7,6 @@
     <title>Sasuke Guide - Client Server</title>
 
     <style>
-
         body {
             font-family: sans-serif;
             margin: 0;
@@ -44,7 +43,7 @@
             width: 90%;
             max-width: 400px;
             padding: 15px;
-            margin: 15px 0;
+            margin: 15px 0 10px 0;
             background-color: #28a745;
             color: white;
             border: none;
@@ -58,6 +57,15 @@
             background-color: #555;
         }
 
+        /* Spotify プレイヤーの設置エリア */
+        #embed-iframe-container {
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 15px;
+            min-height: 152px;
+            display: none;
+        }
+
         #status-area {
             width: 85%;
             max-width: 380px;
@@ -67,43 +75,65 @@
             font-size: 0.9rem;
             white-space: pre-wrap;
             border: 1px solid #333;
+            margin-bottom: 15px;
         }
 
         #audio-results {
             width: 90%;
             max-width: 400px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .audio-card {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             padding: 12px;
             background-color: #2a2a2a;
             border-radius: 8px;
             border: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .audio-info {
+            flex-grow: 1;
         }
 
         .audio-title {
             font-weight: bold;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             font-size: 1rem;
         }
 
         .audio-distance {
             font-size: 0.85rem;
-            margin-bottom: 8px;
             color: #cccccc;
         }
 
-        .audio-card audio {
-            width: 100%;
+        .play-btn {
+            background-color: #1db954;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        .play-btn:active {
+            background-color: #1aa34a;
         }
 
         canvas {
             display: none;
         }
-
     </style>
+
+    <!-- Spotify iFrame API のスクリプト -->
+    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 </head>
 
 <body>
@@ -118,73 +148,72 @@
         カメラ起動中...
     </button>
 
+    <!-- Spotify iFrame プレイヤーが生成される場所 -->
+    <div id="embed-iframe-container">
+        <div id="embed-iframe"></div>
+    </div>
+
     <div id="status-area">
         システムを初期化しています...
     </div>
 
     <canvas id="capture-canvas" width="640" height="480"></canvas>
 
-    <!--
-        自動判定なら1位だけ、
-        自信がない場合は上位3つの音声をここに表示する
-    -->
+    <!-- 自信度が低い場合の上位候補一覧エリア -->
     <div id="audio-results"></div>
 
     <script>
-
         // =========================================================
         // ngrok を起動するたびに毎回ここを書き換える
         // =========================================================
         const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
         // =========================================================
-        // 音声ファイル
+        // 各展示物に対応する Spotify ポッドキャストのエピソード
         // =========================================================
-        const AUDIO_FILES = {
-
-            "お気に入りの部屋": "production_audio/お気に入りの部屋.wav",
-            "ガス灯": "production_audio/ガス灯.wav",
-            "きんだみ襖": "production_audio/きんだみ襖.wav",
-            "シャンデリア": "production_audio/シャンデリア.wav",
-            "ステレオ": "production_audio/ステレオ.wav",
-            "トイレ": "production_audio/トイレ.wav",
-            "引手": "production_audio/引手.wav",
-            "夏障子": "production_audio/夏障子.wav",
-            "換気口": "production_audio/換気口.wav",
-            "筋交": "production_audio/筋交.wav",
-            "波型無双連子": "production_audio/波型無双連子.wav",
-            "覆輪目地": "production_audio/覆輪目地.wav"
+        const SPOTIFY_EPISODES = {
+            "お気に入りの部屋": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "ガス灯": "https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e",
+            "きんだみ襖": "https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d",
+            "シャンデリア": "https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa",
+            "ステレオ": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "トイレ": "https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3",
+            "引手": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "夏障子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "換気口": "https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf",
+            "筋交": "https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3",
+            "波型無双連子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "覆輪目地": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b"
         };
 
         const video = document.getElementById('camera-view');
         const canvas = document.getElementById('capture-canvas');
         const matchBtn = document.getElementById('match-btn');
         const statusArea = document.getElementById('status-area');
+        const playerContainer = document.getElementById('embed-iframe-container');
         const audioResults = document.getElementById('audio-results');
 
-        // =========================================================
-        // 最初のクリックで音声再生権限を取得
-        // =========================================================
-        let audioUnlocked = false;
+        let spotifyIFrameAPI = null;
+        let embedController = null;
+
+        // Spotify API の準備完了時
+        window.onSpotifyIframeApiReady = (IFrameAPI) => {
+            spotifyIFrameAPI = IFrameAPI;
+            console.log("Spotify IFrame API 準備完了");
+        };
 
         async function initCamera() {
-
             try {
-
-                const stream =
-                    await navigator.mediaDevices.getUserMedia({
-
-                        video: {
-                            facingMode: "environment",
-                            width: 640,
-                            height: 480
-                        },
-
-                        audio: false
-                    });
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        width: 640,
+                        height: 480
+                    },
+                    audio: false
+                });
 
                 video.srcObject = stream;
-
                 statusArea.textContent =
                     "準備完了。\n展示物を映して判定開始ボタンを押してください。";
 
@@ -192,33 +221,88 @@
                 matchBtn.disabled = false;
 
             } catch (err) {
-
                 statusArea.textContent =
                     `カメラ起動エラー:\n${err.message}`;
             }
         }
 
         // =========================================================
-        // 音声プレイヤーを1つ作る関数
+        // Web URL を spotify:episode:ID に変換
         // =========================================================
-        function createAudioCard(
-            rank,
-            item
-        ) {
+        function parseToSpotifyUri(rawUri) {
+            if (rawUri && rawUri.startsWith("http")) {
+                const episodeId =
+                    rawUri.split("/episode/")[1]?.split("?")[0];
 
-            const audioPath =
-                AUDIO_FILES[item.name];
+                if (episodeId) {
+                    return `spotify:episode:${episodeId}`;
+                }
+            }
 
-            // 音声ファイルが登録されていなければ表示しない
-            if (!audioPath) {
+            return rawUri;
+        }
+
+        // =========================================================
+        // Spotify プレイヤーを表示・再生
+        // =========================================================
+        function playSpotifyEpisode(targetUri) {
+            if (!spotifyIFrameAPI) {
+                console.error("Spotify API 未準備");
+                return;
+            }
+
+            const cleanUri = parseToSpotifyUri(targetUri);
+
+            playerContainer.style.display = 'block';
+
+            if (embedController) {
+                embedController.loadUri(cleanUri);
+                embedController.play();
+
+            } else {
+                const element =
+                    document.getElementById('embed-iframe');
+
+                const options = {
+                    width: '100%',
+                    height: '152',
+                    uri: cleanUri
+                };
+
+                spotifyIFrameAPI.createController(
+                    element,
+                    options,
+                    (Controller) => {
+                        embedController = Controller;
+                        embedController.play();
+                    }
+                );
+            }
+        }
+
+        // =========================================================
+        // 上位候補カードを作成
+        // =========================================================
+        function createSpotifyCandidateCard(rank, item) {
+
+            const rawUri =
+                SPOTIFY_EPISODES[item.name];
+
+            if (!rawUri) {
                 return null;
             }
 
-            const wrapper =
+            const card =
                 document.createElement("div");
 
-            wrapper.className =
+            card.className =
                 "audio-card";
+
+            const infoDiv =
+                document.createElement("div");
+
+            infoDiv.className =
+                "audio-info";
 
             const title =
                 document.createElement("div");
@@ -238,17 +322,29 @@
             distance.textContent =
                 `距離：${item.min.toFixed(4)}`;
 
-            const audio =
-                document.createElement("audio");
+            infoDiv.appendChild(title);
+            infoDiv.appendChild(distance);
 
-            audio.controls = true;
-            audio.src = audioPath;
+            const selectBtn =
+                document.createElement("button");
 
-            wrapper.appendChild(title);
-            wrapper.appendChild(distance);
-            wrapper.appendChild(audio);
+            selectBtn.className =
+                "play-btn";
 
-            return wrapper;
+            selectBtn.textContent =
+                "Spotifyで再生";
+
+            selectBtn.addEventListener(
+                "click",
+                () => {
+                    playSpotifyEpisode(rawUri);
+                }
+            );
+
+            card.appendChild(infoDiv);
+            card.appendChild(selectBtn);
+
+            return card;
         }
 
         // =========================================================
@@ -258,40 +354,11 @@
 
             matchBtn.disabled = true;
 
-            // 前回の音声候補を消す
+            // 前回の候補をクリア
             audioResults.innerHTML = "";
 
-            // =====================================================
-            // 初回クリック時だけ音声再生権限を取得
-            // =====================================================
-            if (!audioUnlocked) {
-
-                try {
-
-                    const testAudio =
-                        new Audio(AUDIO_FILES["ガス灯"]);
-
-                    testAudio.volume = 0;
-
-                    await testAudio.play();
-
-                    testAudio.pause();
-                    testAudio.currentTime = 0;
-
-                    audioUnlocked = true;
-
-                    console.log(
-                        "音声権限取得成功"
-                    );
-
-                } catch (err) {
-
-                    console.log(
-                        "音声権限取得失敗",
-                        err
-                    );
-                }
-            }
+            // 前回のSpotifyプレイヤーを隠す
+            playerContainer.style.display = 'none';
 
             statusArea.textContent =
                 "サーバーへ画像送信中...\n照合しています...";
@@ -336,7 +403,6 @@
                         );
 
                     if (!response.ok) {
-
                         throw new Error(
                             `HTTPエラー: ${response.status}`
                         );
@@ -359,7 +425,6 @@
                     logText +=
                         `1つ目の閾値: ${result.threshold}\n`;
 
-                    // 2位が存在する場合
                     if (result.gap !== null) {
 
                         logText +=
@@ -372,7 +437,8 @@
                     logText += "\n";
 
                     // =================================================
-                    // まず1つ目の閾値を確認
+                    // 1つ目の閾値
+                    // 距離 >= 0.60 → 再撮影
                     // =================================================
                     if (!result.success) {
 
@@ -388,27 +454,18 @@
                         statusArea.textContent =
                             logText;
 
-                        audioResults.innerHTML =
-                            "";
-
                         return;
                     }
 
                     // =================================================
-                    // 1つ目の閾値はクリア
+                    // 2つ目の閾値
+                    // 距離差 < 0.03 → 上位3件を表示
                     // =================================================
-
-                    // -------------------------------------------------
-                    // 2つ目の閾値：
-                    // 1位と2位の距離差が0.03未満
-                    // → 自信がないため上位3つを表示
-                    // -------------------------------------------------
                     if (result.low_confidence) {
 
                         logText +=
                             "距離差が小さいため、上位3件を表示します。\n";
 
-                        // 上位3件
                         const top3 =
                             result.ranking.slice(0, 3);
 
@@ -416,16 +473,13 @@
                             (item, index) => {
 
                                 const card =
-                                    createAudioCard(
+                                    createSpotifyCandidateCard(
                                         index + 1,
                                         item
                                     );
 
                                 if (card) {
-
-                                    audioResults.appendChild(
-                                        card
-                                    );
+                                    audioResults.appendChild(card);
                                 }
                             }
                         );
@@ -436,38 +490,30 @@
 
                     } else {
 
-                        // -------------------------------------------------
+                        // =================================================
                         // 2つ目の閾値もクリア
-                        // → 1位を自動採用
-                        // -------------------------------------------------
+                        // → 1位のSpotifyを採用
+                        // =================================================
                         logText +=
                             "距離差が十分に大きいため、1位を採用します。\n";
 
-                        const bestItem =
-                            result.ranking[0];
+                        const bestUri =
+                            SPOTIFY_EPISODES[result.best_match];
 
-                        const card =
-                            createAudioCard(
-                                1,
-                                bestItem
-                            );
+                        if (bestUri && spotifyIFrameAPI) {
 
-                        if (card) {
-
-                            audioResults.appendChild(
-                                card
-                            );
+                            // 1位のSpotifyを再生
+                            playSpotifyEpisode(bestUri);
 
                             statusArea.textContent =
                                 logText +
-                                "\n1位の音声ガイドを表示しました。\n" +
-                                "再生ボタンを押してください。";
+                                "\n1位のSpotifyポッドキャストを再生します。";
 
                         } else {
 
                             statusArea.textContent =
                                 logText +
-                                "\n音声ファイルが見つかりません。";
+                                "\nSpotify URI または Player が見つかりません。";
                         }
                     }
 
@@ -488,7 +534,6 @@
                 }
 
             }, 'image/jpeg', 0.8);
-
         });
 
         window.addEventListener(
