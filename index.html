@@ -1,936 +1,550 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sasuke Guide - Client Server</title>
 
-```
-<title>Sasuke Guide - Client Server</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-<style>
-    body {
-        font-family: sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #121212;
-        color: white;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
+        h1 {
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
 
-    h1 {
-        font-size: 1.2rem;
-        margin: 10px 0;
-    }
+        /* =========================================================
+           画面
+           ========================================================= */
 
-    /* =========================================================
-       画面
-       ========================================================= */
+        .screen {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-    .screen {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
+        .hidden {
+            display: none !important;
+        }
 
-    .hidden {
-        display: none !important;
-    }
+        /* =========================================================
+           カメラ画面
+           ========================================================= */
 
-    /* =========================================================
-       カメラ画面
-       ========================================================= */
+        #video-container {
+            position: relative;
+            width: 90%;
+            max-width: 400px;
+            aspect-ratio: 3 / 4;
+            background-color: black;
+            border-radius: 8px;
+            overflow: hidden;
+        }
 
-    #video-container {
-        position: relative;
-        width: 90%;
-        max-width: 400px;
-        aspect-ratio: 3 / 4;
-        background-color: black;
-        border-radius: 8px;
-        overflow: hidden;
-    }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 枠いっぱいに収まるよう調整 */
+        }
 
-    video {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
+        .btn {
+            width: 90%;
+            max-width: 400px;
+            padding: 15px;
+            margin: 15px 0 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-    .btn {
-        width: 90%;
-        max-width: 400px;
-        padding: 15px;
-        margin: 15px 0 10px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 1.1rem;
-        font-weight: bold;
-        cursor: pointer;
-    }
+        .btn:disabled {
+            background-color: #555;
+        }
 
-    .btn:disabled {
-        background-color: #555;
-    }
+        /* =========================================================
+           結果画面
+           ========================================================= */
 
-    /* =========================================================
-       結果画面
-       ========================================================= */
+        #result-screen h1 {
+            margin-bottom: 15px;
+        }
 
-    #result-screen h1 {
-        margin-bottom: 15px;
-    }
+        .message-banner {
+            width: 85%;
+            max-width: 380px;
+            padding: 12px 15px;
+            background-color: #e6a23c;
+            color: #121212;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+            box-sizing: border-box;
+        }
 
-    #status-area {
-        width: 85%;
-        max-width: 380px;
-        padding: 15px;
-        background-color: #1e1e1e;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        white-space: pre-wrap;
-        border: 1px solid #333;
-        margin-bottom: 15px;
-        box-sizing: border-box;
-    }
+        #status-area {
+            width: 85%;
+            max-width: 380px;
+            padding: 15px;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
 
-    /* =========================================================
-       Spotifyメインプレイヤー
-       ========================================================= */
+        /* =========================================================
+           Spotifyメインプレイヤー
+           ========================================================= */
 
-    #embed-iframe-container {
-        width: 90%;
-        max-width: 400px;
-        margin-bottom: 15px;
-        min-height: 152px;
-        display: none;
-    }
+        #embed-iframe-container {
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 15px;
+            min-height: 152px;
+            display: none;
+        }
 
-    /* =========================================================
-       低信頼時の候補表示
-       ========================================================= */
+        /* =========================================================
+           低信頼時の候補表示
+           ========================================================= */
 
-    #audio-results {
-        width: 90%;
-        max-width: 400px;
-        margin-bottom: 20px;
-    }
+        #audio-results {
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 10px;
+        }
 
-    .audio-card {
-        margin-bottom: 12px;
-        padding: 12px;
-        background-color: #2a2a2a;
-        border-radius: 8px;
-        border: 1px solid #444;
-    }
+        .audio-card {
+            margin-bottom: 12px;
+            padding: 12px;
+            background-color: #2a2a2a;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
 
-    .audio-title {
-        font-weight: bold;
-        margin-bottom: 4px;
-        font-size: 1rem;
-    }
+        .audio-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 1rem;
+        }
 
-    .audio-distance {
-        font-size: 0.85rem;
-        color: #ccc;
-        margin-bottom: 8px;
-    }
+        .audio-distance {
+            font-size: 0.85rem;
+            color: #ccc;
+            margin-bottom: 8px;
+        }
 
-    .candidate-player {
-        width: 100%;
-        min-height: 152px;
-    }
+        .candidate-player {
+            width: 100%;
+            min-height: 152px;
+        }
 
-    /* =========================================================
-       戻るボタン
-       ========================================================= */
+        /* =========================================================
+           戻るボタン
+           ========================================================= */
 
-    #back-btn {
-        background-color: #555;
-        margin-top: 5px;
-        margin-bottom: 20px;
-    }
+        #back-btn {
+            background-color: #555;
+            margin-top: 5px;
+            margin-bottom: 20px;
+        }
 
-    canvas {
-        display: none;
-    }
-</style>
+        canvas {
+            display: none;
+        }
+    </style>
 
-<!-- Spotify IFrame API -->
-<script
-    src="https://open.spotify.com/embed/iframe-api/v1"
-    async>
-</script>
-```
-
+    <!-- Spotify IFrame API -->
+    <script src="[https://open.spotify.com/embed/iframe-api/v1](https://open.spotify.com/embed/iframe-api/v1)" async></script>
 </head>
 
 <body>
 
-```
-<!-- =========================================================
-     画面①：カメラ・判定画面
-     ========================================================= -->
-<div id="camera-screen" class="screen">
+    <!-- =========================================================
+         画面①：カメラ・判定画面
+         ========================================================= -->
+    <div id="camera-screen" class="screen">
+        <h1>旧豊田佐助邸 画像認識音声ガイド</h1>
 
-    <h1>旧豊田佐助邸 画像認識音声ガイド</h1>
+        <div id="video-container">
+            <video id="camera-view" autoplay playsinline muted></video>
+        </div>
 
-    <div id="video-container">
-        <video id="camera-view" autoplay playsinline muted></video>
+        <button id="match-btn" class="btn" disabled>
+            カメラ起動中...
+        </button>
     </div>
 
-    <button id="match-btn" class="btn" disabled>
-        カメラ起動中...
-    </button>
 
-</div>
+    <!-- =========================================================
+         画面②：結果・Spotify画面
+         ========================================================= -->
+    <div id="result-screen" class="screen hidden">
+        <h1>判定結果</h1>
 
+        <!-- 低信頼時にプレイヤー上部に表示する案内文 -->
+        <div id="candidate-message" class="message-banner hidden">
+            候補が複数あります。該当するものを選択してください。
+        </div>
 
-<!-- =========================================================
-     画面②：結果・Spotify画面
-     ========================================================= -->
-<div id="result-screen" class="screen hidden">
+        <!-- Spotifyメインプレイヤー（通常時は1位を再生） -->
+        <div id="embed-iframe-container">
+            <div id="embed-iframe"></div>
+        </div>
 
-    <h1>判定結果</h1>
+        <!-- 低信頼時の候補表示（上位3件のプレイヤー） -->
+        <div id="audio-results"></div>
 
-    <div id="status-area">
-        判定結果を表示しています...
+        <!-- 詳細ステータス情報（判定数値など） -->
+        <div id="status-area">
+            判定結果を表示しています...
+        </div>
+
+        <button id="back-btn" class="btn">
+            もう一度判定
+        </button>
     </div>
 
-    <!-- =====================================================
-         Spotifyメインプレイヤー
-         通常時は1位の音声をここで再生
-         ===================================================== -->
-    <div id="embed-iframe-container">
-        <div id="embed-iframe"></div>
-    </div>
 
-    <!-- =====================================================
-         低信頼時の候補表示
-         上位3件のSpotifyプレイヤーをここに表示
-         ===================================================== -->
-    <div id="audio-results"></div>
-
-    <button id="back-btn" class="btn">
-        もう一度判定
-    </button>
-
-</div>
+    <canvas id="capture-canvas" width="640" height="480"></canvas>
 
 
-<canvas id="capture-canvas" width="640" height="480"></canvas>
+    <script>
+        // =========================================================
+        // ngrok URL
+        // =========================================================
+        const SERVER_IP = "[https://gallantly-gosling-refrain.ngrok-free.dev](https://gallantly-gosling-refrain.ngrok-free.dev)";
 
 
-<script>
-
-    // =========================================================
-    // 【超重要】
-    // ngrokを起動するたびに毎回ここを書き換える
-    // =========================================================
-
-    const SERVER_IP =
-        "https://gallantly-gosling-refrain.ngrok-free.dev";
-
-
-    // =========================================================
-    // SpotifyエピソードURL
-    // =========================================================
-
-    const SPOTIFY_EPISODES = {
-
-        "お気に入りの部屋":
-            "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-
-        "ガス灯":
-            "https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e",
-
-        "きんだみ襖":
-            "https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d",
-
-        "シャンデリア":
-            "https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa",
-
-        "ステレオ":
-            "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-
-        "トイレ":
-            "https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3",
-
-        "引手":
-            "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-
-        "夏障子":
-            "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-
-        "換気口":
-            "https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf",
-
-        "筋交":
-            "https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3",
-
-        "波型無双連子":
-            "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-
-        "覆輪目地":
-            "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b"
-    };
+        // =========================================================
+        // SpotifyエピソードURL
+        // =========================================================
+        const SPOTIFY_EPISODES = {
+            "お気に入りの部屋": "[https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b](https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b)",
+            "ガス灯": "[https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e](https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e)",
+            "きんだみ襖": "[https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d](https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d)",
+            "シャンデリア": "[https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa](https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa)",
+            "ステレオ": "[https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b](https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b)",
+            "トイレ": "[https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3](https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3)",
+            "引手": "[https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b](https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b)",
+            "夏障子": "[https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b](https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b)",
+            "換気口": "[https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf](https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf)",
+            "筋交": "[https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3](https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3)",
+            "波型無双連子": "[https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b](https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b)",
+            "覆輪目地": "[https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b](https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b)"
+        };
 
 
-    // =========================================================
-    // HTML要素を取得
-    // =========================================================
-
-    const cameraScreen =
-        document.getElementById("camera-screen");
-
-    const resultScreen =
-        document.getElementById("result-screen");
-
-    const video =
-        document.getElementById("camera-view");
-
-    const canvas =
-        document.getElementById("capture-canvas");
-
-    const matchBtn =
-        document.getElementById("match-btn");
-
-    const backBtn =
-        document.getElementById("back-btn");
-
-    const statusArea =
-        document.getElementById("status-area");
-
-    const playerContainer =
-        document.getElementById("embed-iframe-container");
-
-    const audioResults =
-        document.getElementById("audio-results");
+        // =========================================================
+        // HTML要素を取得
+        // =========================================================
+        const cameraScreen = document.getElementById("camera-screen");
+        const resultScreen = document.getElementById("result-screen");
+        const video = document.getElementById("camera-view");
+        const canvas = document.getElementById("capture-canvas");
+        const matchBtn = document.getElementById("match-btn");
+        const backBtn = document.getElementById("back-btn");
+        const statusArea = document.getElementById("status-area");
+        const playerContainer = document.getElementById("embed-iframe-container");
+        const audioResults = document.getElementById("audio-results");
+        const candidateMessage = document.getElementById("candidate-message");
 
 
-    // =========================================================
-    // Spotify IFrame API
-    // =========================================================
+        // =========================================================
+        // Spotify IFrame API
+        // =========================================================
+        let spotifyIFrameAPI = null;
+        let embedController = null;
 
-    let spotifyIFrameAPI = null;
-    let embedController = null;
-
-
-    // =========================================================
-    // Spotify IFrame APIの準備完了
-    // =========================================================
-
-    window.onSpotifyIframeApiReady = (IFrameAPI) => {
-
-        spotifyIFrameAPI = IFrameAPI;
-
-        console.log("Spotify IFrame API 準備完了");
-    };
+        window.onSpotifyIframeApiReady = (IFrameAPI) => {
+            spotifyIFrameAPI = IFrameAPI;
+            console.log("Spotify IFrame API 準備完了");
+        };
 
 
-    // =========================================================
-    // カメラ画面を表示
-    // =========================================================
+        // =========================================================
+        // カメラ画面を表示
+        // =========================================================
+        function showCameraScreen() {
+            cameraScreen.classList.remove("hidden");
+            resultScreen.classList.add("hidden");
 
-    function showCameraScreen() {
+            matchBtn.disabled = false;
+            matchBtn.textContent = "判定開始";
 
-        cameraScreen.classList.remove("hidden");
-        resultScreen.classList.add("hidden");
-
-        matchBtn.disabled = false;
-        matchBtn.textContent = "判定開始";
-    }
-
-
-    // =========================================================
-    // 結果画面を表示
-    // =========================================================
-
-    function showResultScreen() {
-
-        cameraScreen.classList.add("hidden");
-        resultScreen.classList.remove("hidden");
-
-        window.scrollTo(0, 0);
-    }
+            // 非表示解除時のレイアウトズレ（黒枠）対策
+            if (video.srcObject) {
+                video.play().catch(() => {});
+            }
+        }
 
 
-    // =========================================================
-    // カメラ起動
-    // =========================================================
+        // =========================================================
+        // 結果画面を表示
+        // =========================================================
+        function showResultScreen() {
+            cameraScreen.classList.add("hidden");
+            resultScreen.classList.remove("hidden");
 
-    async function initCamera() {
+            window.scrollTo(0, 0);
+        }
 
-        try {
 
-            const stream =
-                await navigator.mediaDevices.getUserMedia({
-
+        // =========================================================
+        // カメラ起動
+        // =========================================================
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "environment",
                         width: 640,
                         height: 480
                     },
-
                     audio: false
                 });
 
-            video.srcObject = stream;
-
-            matchBtn.textContent = "判定開始";
-            matchBtn.disabled = false;
-
-        } catch (err) {
-
-            matchBtn.textContent = "カメラ起動エラー";
-            matchBtn.disabled = true;
-
-            console.error(
-                "カメラ起動エラー:",
-                err
-            );
-        }
-    }
-
-
-    // =========================================================
-    // Spotify URLをSpotify URIに変換
-    //
-    // 例：
-    // https://open.spotify.com/episode/xxxxx
-    //
-    // ↓
-    //
-    // spotify:episode:xxxxx
-    // =========================================================
-
-    function parseToSpotifyUri(rawUri) {
-
-        if (rawUri && rawUri.startsWith("http")) {
-
-            const episodeId =
-                rawUri
-                    .split("/episode/")[1]
-                    ?.split("?")[0];
-
-            if (episodeId) {
-
-                return `spotify:episode:${episodeId}`;
-            }
-        }
-
-        return rawUri;
-    }
-
-
-    // =========================================================
-    // 通常時のSpotify再生
-    //
-    // 判定結果の1位を採用した場合に使用
-    // =========================================================
-
-    function playSpotifyEpisode(targetUri) {
-
-        if (!spotifyIFrameAPI) {
-
-            console.error("Spotify API 未準備");
-
-            return;
-        }
-
-        const cleanUri =
-            parseToSpotifyUri(targetUri);
-
-        playerContainer.style.display = "block";
-
-
-        // ---------------------------------------------------------
-        // すでにプレイヤーが作成されている場合
-        // ---------------------------------------------------------
-
-        if (embedController) {
-
-            embedController.loadUri(cleanUri);
-
-            embedController.play();
-
-        }
-
-
-        // ---------------------------------------------------------
-        // 初回のみSpotifyプレイヤーを作成
-        // ---------------------------------------------------------
-
-        else {
-
-            const element =
-                document.getElementById("embed-iframe");
-
-            spotifyIFrameAPI.createController(
-
-                element,
-
-                {
-                    width: "100%",
-                    height: "152",
-                    uri: cleanUri
-                },
-
-                (Controller) => {
-
-                    embedController = Controller;
-
-                    embedController.play();
-                }
-            );
-        }
-    }
-
-
-    // =========================================================
-    // 低信頼時の候補表示
-    //
-    // 上位3件それぞれにSpotifyプレイヤーを表示する
-    //
-    // ※候補プレイヤーは自動再生しない
-    // =========================================================
-
-    function createSpotifyCandidateCard(rank, item) {
-
-        const rawUri =
-            SPOTIFY_EPISODES[item.name];
-
-        if (!rawUri) {
-
-            return null;
-        }
-
-
-        // ---------------------------------------------------------
-        // カード全体
-        // ---------------------------------------------------------
-
-        const card =
-            document.createElement("div");
-
-        card.className = "audio-card";
-
-
-        // ---------------------------------------------------------
-        // 順位・展示物名
-        // ---------------------------------------------------------
-
-        const title =
-            document.createElement("div");
-
-        title.className = "audio-title";
-
-        title.textContent =
-            `${rank}位：${item.name}`;
-
-
-        // ---------------------------------------------------------
-        // 距離
-        // ---------------------------------------------------------
-
-        const distance =
-            document.createElement("div");
-
-        distance.className = "audio-distance";
-
-        distance.textContent =
-            `距離：${item.min.toFixed(4)}`;
-
-
-        // ---------------------------------------------------------
-        // Spotifyプレイヤーを入れる場所
-        // ---------------------------------------------------------
-
-        const player =
-            document.createElement("div");
-
-        player.className = "candidate-player";
-
-
-        // 各プレイヤーに重複しないIDを付ける
-
-        const playerId =
-            `candidate-player-${rank}-${Date.now()}-${Math.random()
-                .toString(36)
-                .slice(2)}`;
-
-        player.id = playerId;
-
-
-        // ---------------------------------------------------------
-        // カードに追加
-        // ---------------------------------------------------------
-
-        card.appendChild(title);
-
-        card.appendChild(distance);
-
-        card.appendChild(player);
-
-
-        // ---------------------------------------------------------
-        // Spotify IFrame APIが準備できている場合
-        // ---------------------------------------------------------
-
-        if (spotifyIFrameAPI) {
-
-            const cleanUri =
-                parseToSpotifyUri(rawUri);
-
-            spotifyIFrameAPI.createController(
-
-                player,
-
-                {
-                    width: "100%",
-                    height: "152",
-                    uri: cleanUri
-                },
-
-                (Controller) => {
-
-                    // =================================================
-                    // 低信頼時の候補プレイヤー
-                    // 表示するだけで、自動再生はしない
-                    // =================================================
-
-                }
-            );
-
-        } else {
-
-            const wait =
-                document.createElement("div");
-
-            wait.textContent =
-                "Spotifyプレイヤーを準備しています...";
-
-            card.appendChild(wait);
-        }
-
-
-        return card;
-    }
-
-
-    // =========================================================
-    // 判定開始ボタン
-    // =========================================================
-
-    matchBtn.addEventListener("click", async () => {
-
-        matchBtn.disabled = true;
-
-
-        // =========================================================
-        // 結果画面を初期化
-        // =========================================================
-
-        audioResults.innerHTML = "";
-
-        playerContainer.style.display = "none";
-
-
-        statusArea.textContent =
-            "サーバーへ画像送信中...\n照合しています...";
-
-
-        // =========================================================
-        // カメラ映像から現在表示されている画像を取得
-        // =========================================================
-
-        const ctx =
-            canvas.getContext("2d");
-
-        canvas.width =
-            video.videoWidth;
-
-        canvas.height =
-            video.videoHeight;
-
-        ctx.drawImage(
-            video,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-
-
-        // =========================================================
-        // JPEG画像に変換してサーバーへ送信
-        // =========================================================
-
-        canvas.toBlob(async (blob) => {
-
-            const formData =
-                new FormData();
-
-            formData.append(
-                "image",
-                blob,
-                "capture.jpg"
-            );
-
-
-            try {
-
-                // =====================================================
-                // Flaskサーバーへ画像を送信
-                // =====================================================
-
-                const response =
-                    await fetch(
-                        `${SERVER_IP}/predict`,
-                        {
-                            method: "POST",
-                            body: formData
-                        }
-                    );
-
-
-                // =====================================================
-                // HTTPエラー確認
-                // =====================================================
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        `HTTPエラー: ${response.status}`
-                    );
-                }
-
-
-                // =====================================================
-                // サーバーから判定結果を受信
-                // =====================================================
-
-                const result =
-                    await response.json();
-
-
-                // =====================================================
-                // 判定結果を作成
-                // =====================================================
-
-                let logText =
-                    "===== 判定結果 =====\n\n";
-
-                logText +=
-                    `1位: ${result.best_match}\n`;
-
-                logText +=
-                    `距離: ${result.distance.toFixed(4)}\n`;
-
-                logText +=
-                    `1つ目の閾値: ${result.threshold}\n`;
-
-
-                // =====================================================
-                // 1位と2位の距離差を表示
-                // =====================================================
-
-                if (result.gap !== null) {
-
-                    logText +=
-                        `1位と2位の距離差: ${result.gap.toFixed(4)}\n`;
-
-                    logText +=
-                        `2つ目の閾値: ${result.gap_threshold}\n`;
-                }
-
-                logText += "\n";
-
-
-                // =====================================================
-                // 結果画面へ移動
-                // =====================================================
-
-                showResultScreen();
-
-
-                // =====================================================
-                // 判定失敗
-                //
-                // 距離が1つ目の閾値以上の場合
-                // =====================================================
-
-                if (!result.success) {
-
-                    logText +=
-                        "判定に失敗しました\n";
-
-                    logText +=
-                        "距離が閾値以上です。\n";
-
-                    logText +=
-                        "角度を変えて撮影し直してください。";
-
-                    statusArea.textContent =
-                        logText;
-
-                    playerContainer.style.display =
-                        "none";
-
-                    return;
-                }
-
-
-                // =====================================================
-                // 低信頼の場合
-                //
-                // 1位と2位の距離差が小さいため、
-                // 自動で1位を決めず、上位3件を表示
-                // =====================================================
-
-                if (result.low_confidence) {
-
-                    logText +=
-                        "距離差が小さいため、上位3件を表示します。\n";
-
-                    logText +=
-                        "表示されたSpotifyプレイヤーのサムネイルを確認して、該当する音声を選択してください。";
-
-                    statusArea.textContent =
-                        logText;
-
-
-                    // =================================================
-                    // 上位3件を取得
-                    // =================================================
-
-                    const top3 =
-                        result.ranking.slice(0, 3);
-
-
-                    // =================================================
-                    // 上位3件のSpotifyプレイヤーを表示
-                    // =================================================
-
-                    top3.forEach((item, index) => {
-
-                        const card =
-                            createSpotifyCandidateCard(
-                                index + 1,
-                                item
-                            );
-
-                        if (card) {
-
-                            audioResults.appendChild(card);
-                        }
-                    });
-
-
-                // =====================================================
-                // 通常の場合
-                //
-                // 1位と2位の距離差が十分に大きいため、
-                // 1位を採用してSpotifyを自動再生
-                // =====================================================
-
-                } else {
-
-                    logText +=
-                        "距離差が十分に大きいため、1位を採用します。\n";
-
-                    statusArea.textContent =
-                        logText;
-
-
-                    const bestUri =
-                        SPOTIFY_EPISODES[result.best_match];
-
-
-                    if (bestUri && spotifyIFrameAPI) {
-
-                        playSpotifyEpisode(bestUri);
-
-                    } else {
-
-                        statusArea.textContent =
-                            logText +
-                            "Spotify URIが見つかりません。";
-                    }
-                }
-
+                video.srcObject = stream;
+                matchBtn.textContent = "判定開始";
+                matchBtn.disabled = false;
 
             } catch (err) {
+                matchBtn.textContent = "カメラ起動エラー";
+                matchBtn.disabled = true;
+                console.error("カメラ起動エラー:", err);
+            }
+        }
 
-                // =====================================================
-                // 通信エラー
-                // =====================================================
 
-                showResultScreen();
+        // =========================================================
+        // Spotify URLをSpotify URIに変換
+        // =========================================================
+        function parseToSpotifyUri(rawUri) {
+            if (rawUri && rawUri.startsWith("http")) {
+                const episodeId = rawUri.split("/episode/")[1]?.split("?")[0];
+                if (episodeId) {
+                    return `spotify:episode:${episodeId}`;
+                }
+            }
+            return rawUri;
+        }
 
-                statusArea.textContent =
-                    `\n通信エラー\n\n` +
-                    `■ 確認すること\n\n` +
-                    `1. app.py が起動しているか\n` +
-                    `2. ngrok が起動しているか\n` +
-                    `3. SERVER_IP が正しいか\n` +
-                    `4. Flask が落ちていないか\n\n` +
-                    `詳細:\n${err.message}\n`;
+
+        // =========================================================
+        // 通常時のSpotify再生（1位採用時）
+        // =========================================================
+        function playSpotifyEpisode(targetUri) {
+            if (!spotifyIFrameAPI) {
+                console.error("Spotify API 未準備");
+                return;
             }
 
+            const cleanUri = parseToSpotifyUri(targetUri);
+            playerContainer.style.display = "block";
 
-            // =========================================================
-            // 判定終了後
-            // =========================================================
-
-            matchBtn.disabled = false;
-
-        }, "image/jpeg", 0.8);
-    });
-
-
-    // =========================================================
-    // 「もう一度判定」ボタン
-    // =========================================================
-
-    backBtn.addEventListener("click", () => {
-
-        // 結果表示を消去
-
-        audioResults.innerHTML = "";
-
-        statusArea.textContent =
-            "判定結果を表示しています...";
-
-
-        // Spotifyメインプレイヤーを非表示
-
-        playerContainer.style.display =
-            "none";
+            if (embedController) {
+                embedController.loadUri(cleanUri);
+                embedController.play();
+            } else {
+                const element = document.getElementById("embed-iframe");
+                spotifyIFrameAPI.createController(
+                    element,
+                    {
+                        width: "100%",
+                        height: "152",
+                        uri: cleanUri
+                    },
+                    (Controller) => {
+                        embedController = Controller;
+                        embedController.play();
+                    }
+                );
+            }
+        }
 
 
-        // カメラ画面へ戻る
+        // =========================================================
+        // 低信頼時の候補カード作成
+        // =========================================================
+        function createSpotifyCandidateCard(rank, item) {
+            const rawUri = SPOTIFY_EPISODES[item.name];
+            if (!rawUri) return null;
 
-        showCameraScreen();
-    });
+            const card = document.createElement("div");
+            card.className = "audio-card";
+
+            const title = document.createElement("div");
+            title.className = "audio-title";
+            title.textContent = `${rank}位：${item.name}`;
+
+            const distance = document.createElement("div");
+            distance.className = "audio-distance";
+            distance.textContent = `距離：${item.min.toFixed(4)}`;
+
+            const player = document.createElement("div");
+            player.className = "candidate-player";
+            const playerId = `candidate-player-${rank}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            player.id = playerId;
+
+            card.appendChild(title);
+            card.appendChild(distance);
+            card.appendChild(player);
+
+            if (spotifyIFrameAPI) {
+                const cleanUri = parseToSpotifyUri(rawUri);
+                spotifyIFrameAPI.createController(
+                    player,
+                    {
+                        width: "100%",
+                        height: "152",
+                        uri: cleanUri
+                    },
+                    (Controller) => {
+                        // 自動再生はしない
+                    }
+                );
+            } else {
+                const wait = document.createElement("div");
+                wait.textContent = "Spotifyプレイヤーを準備しています...";
+                card.appendChild(wait);
+            }
+
+            return card;
+        }
 
 
-    // =========================================================
-    // ページ読み込み時にカメラを起動
-    // =========================================================
+        // =========================================================
+        // 判定開始ボタン
+        // =========================================================
+        matchBtn.addEventListener("click", async () => {
+            matchBtn.disabled = true;
 
-    window.addEventListener(
-        "DOMContentLoaded",
-        initCamera
-    );
+            // 表示の初期化
+            audioResults.innerHTML = "";
+            playerContainer.style.display = "none";
+            candidateMessage.classList.add("hidden");
 
-</script>
-```
+            statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
 
+            // キャプチャ取得
+            const ctx = canvas.getContext("2d");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // 送信
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append("image", blob, "capture.jpg");
+
+                try {
+                    const response = await fetch(`${SERVER_IP}/predict`, {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTPエラー: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+
+                    let logText = "===== 判定詳細 =====\n\n";
+                    logText += `1位: ${result.best_match}\n`;
+                    logText += `距離: ${result.distance.toFixed(4)}\n`;
+                    logText += `1つ目の閾値: ${result.threshold}\n`;
+
+                    if (result.gap !== null && result.gap !== undefined) {
+                        logText += `1位と2位の距離差: ${result.gap.toFixed(4)}\n`;
+                        logText += `2つ目の閾値: ${result.gap_threshold}\n`;
+                    }
+
+                    showResultScreen();
+
+                    // --- 判定失敗時 ---
+                    if (!result.success) {
+                        logText += "\n判定に失敗しました\n距離が閾値以上です。\n角度を変えて撮影し直してください。";
+                        statusArea.textContent = logText;
+                        return;
+                    }
+
+                    // --- 低信頼時（候補3件表示） ---
+                    if (result.low_confidence) {
+                        candidateMessage.classList.remove("hidden"); // 上部にテキストメッセージを表示
+
+                        logText += "\n※距離差が小さいため候補を表示しています。";
+                        statusArea.textContent = logText;
+
+                        const top3 = result.ranking.slice(0, 3);
+                        top3.forEach((item, index) => {
+                            const card = createSpotifyCandidateCard(index + 1, item);
+                            if (card) {
+                                audioResults.appendChild(card);
+                            }
+                        });
+
+                    // --- 通常判定時（1位確定） ---
+                    } else {
+                        logText += "\n距離差が十分に大きいため1位を採用しました。";
+                        statusArea.textContent = logText;
+
+                        const bestUri = SPOTIFY_EPISODES[result.best_match];
+                        if (bestUri && spotifyIFrameAPI) {
+                            playSpotifyEpisode(bestUri);
+                        } else {
+                            statusArea.textContent = logText + "\nSpotify URIが見つかりません。";
+                        }
+                    }
+
+                } catch (err) {
+                    showResultScreen();
+                    statusArea.textContent =
+                        `\n通信エラー\n\n` +
+                        `■ 確認すること\n` +
+                        `1. app.py が起動しているか\n` +
+                        `2. ngrok が起動しているか\n` +
+                        `3. SERVER_IP が正しいか\n\n` +
+                        `詳細:\n${err.message}\n`;
+                }
+
+                matchBtn.disabled = false;
+            }, "image/jpeg", 0.8);
+        });
+
+
+        // =========================================================
+        // 「もう一度判定」ボタン
+        // =========================================================
+        backBtn.addEventListener("click", () => {
+            audioResults.innerHTML = "";
+            candidateMessage.classList.add("hidden");
+            statusArea.textContent = "判定結果を表示しています...";
+            playerContainer.style.display = "none";
+
+            showCameraScreen();
+        });
+
+
+        // DOM読み込み完了時にカメラ起動
+        window.addEventListener("DOMContentLoaded", initCamera);
+    </script>
 </body>
 </html>
