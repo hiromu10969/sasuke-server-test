@@ -143,6 +143,57 @@
         canvas {
             display: none;
         }
+
+        #feedback-area {
+            width: 85%;
+            max-width: 380px;
+            padding: 12px 15px;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            border: 1px solid #333;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        #feedback-question {
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+        }
+
+        #feedback-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .feedback-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+        }
+
+        #feedback-yes-btn {
+            background-color: #28a745;
+        }
+
+        #feedback-no-btn {
+            background-color: #d9534f;
+        }
+
+        .feedback-btn:disabled {
+            background-color: #555;
+            cursor: default;
+        }
+
+        #feedback-thanks {
+            font-size: 0.9rem;
+            color: #8fd19e;
+        }
     </style>
 </head>
 
@@ -168,6 +219,14 @@
         </div>
         <div id="audio-results"></div>
         <div id="status-area">判定結果を表示しています...</div>
+        <div id="feedback-area" class="hidden">
+            <div id="feedback-question">正しく識別されましたか？</div>
+            <div id="feedback-buttons">
+                <button id="feedback-yes-btn" class="feedback-btn">はい</button>
+                <button id="feedback-no-btn" class="feedback-btn">いいえ</button>
+            </div>
+            <div id="feedback-thanks" class="hidden">ご回答ありがとうございました。</div>
+        </div>
         <button id="back-btn" class="btn">もう一度判定</button>
     </div>
 
@@ -214,7 +273,16 @@
             const audioResults = document.getElementById("audio-results");
             const candidateMessage = document.getElementById("candidate-message");
 
+            // 正誤フィードバック関連の要素
+            const feedbackArea = document.getElementById("feedback-area");
+            const feedbackYesBtn = document.getElementById("feedback-yes-btn");
+            const feedbackNoBtn = document.getElementById("feedback-no-btn");
+            const feedbackThanks = document.getElementById("feedback-thanks");
+
             let currentStream = null;
+
+            // 直近の判定結果に紐づく画像ファイル名（フィードバック送信時に使用）
+            let lastResultFilename = null;
 
             // カメラの起動処理
             async function startCamera() {
@@ -266,6 +334,62 @@
                 resultScreen.classList.remove("hidden");
                 window.scrollTo(0, 0);
             }
+
+            // フィードバックUIを初期状態にリセット
+            function resetFeedbackUI() {
+                feedbackArea.classList.add("hidden");
+                feedbackThanks.classList.add("hidden");
+                feedbackYesBtn.classList.remove("hidden");
+                feedbackNoBtn.classList.remove("hidden");
+                feedbackYesBtn.disabled = false;
+                feedbackNoBtn.disabled = false;
+                lastResultFilename = null;
+            }
+
+            // フィードバックボタンを表示
+            function showFeedbackUI(filename) {
+                lastResultFilename = filename;
+                feedbackArea.classList.remove("hidden");
+                feedbackThanks.classList.add("hidden");
+                feedbackYesBtn.classList.remove("hidden");
+                feedbackNoBtn.classList.remove("hidden");
+                feedbackYesBtn.disabled = false;
+                feedbackNoBtn.disabled = false;
+            }
+
+            // フィードバックをサーバーへ送信
+            function sendFeedback(isCorrect) {
+                if (!lastResultFilename) return;
+
+                feedbackYesBtn.disabled = true;
+                feedbackNoBtn.disabled = true;
+
+                fetch(`${SERVER_IP}/feedback`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "ngrok-skip-browser-warning": "true"
+                    },
+                    body: JSON.stringify({
+                        filename: lastResultFilename,
+                        correct: isCorrect
+                    })
+                })
+                .then((response) => response.json())
+                .then(() => {
+                    feedbackYesBtn.classList.add("hidden");
+                    feedbackNoBtn.classList.add("hidden");
+                    feedbackThanks.classList.remove("hidden");
+                })
+                .catch((err) => {
+                    console.error("フィードバック送信失敗:", err);
+                    feedbackYesBtn.disabled = false;
+                    feedbackNoBtn.disabled = false;
+                });
+            }
+
+            feedbackYesBtn.addEventListener("click", () => sendFeedback(true));
+            feedbackNoBtn.addEventListener("click", () => sendFeedback(false));
 
             function parseToSpotifyUri(rawUri) {
                 if (rawUri && rawUri.startsWith("http")) {
@@ -335,6 +459,7 @@
                 audioResults.innerHTML = "";
                 playerContainer.style.display = "none";
                 candidateMessage.classList.add("hidden");
+                resetFeedbackUI();
                 statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
 
                 const ctx = canvas.getContext("2d");
@@ -384,6 +509,11 @@
                             return;
                         }
 
+                        // 判定に成功した場合のみ、正誤フィードバックを受け付ける
+                        if (result.filename) {
+                            showFeedbackUI(result.filename);
+                        }
+
                         if (result.low_confidence) {
                             candidateMessage.classList.remove("hidden");
                             logText += "\n※距離差が小さいため候補を表示しています。";
@@ -425,6 +555,7 @@
             backBtn.addEventListener("click", () => {
                 audioResults.innerHTML = "";
                 candidateMessage.classList.add("hidden");
+                resetFeedbackUI();
                 statusArea.textContent = "判定結果を表示しています...";
                 playerContainer.style.display = "none";
                 showCameraScreen();
