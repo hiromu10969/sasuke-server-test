@@ -218,9 +218,8 @@
             <div id="embed-iframe"></div>
         </div>
         <div id="audio-results"></div>
-        <div id="status-area">判定結果を表示しています...</div>
         <div id="feedback-area" class="hidden">
-            <div id="feedback-question">正しく識別されましたか？</div>
+            <div id="feedback-question">正しいガイドが表示されましたか？</div>
             <div id="feedback-buttons">
                 <button id="feedback-yes-btn" class="feedback-btn">はい</button>
                 <button id="feedback-no-btn" class="feedback-btn">いいえ</button>
@@ -228,6 +227,7 @@
             <div id="feedback-thanks" class="hidden">ご回答ありがとうございました。</div>
         </div>
         <button id="back-btn" class="btn">もう一度判定</button>
+        <div id="status-area">判定結果を表示しています...</div>
     </div>
 
     <canvas id="capture-canvas" width="640" height="480"></canvas>
@@ -420,6 +420,25 @@
                 }
             }
 
+            // 複数候補表示時に、来館者が実際に再生した候補をサーバーへ記録
+            function sendCandidateSelection(candidateName) {
+                if (!lastResultFilename) return;
+
+                fetch(`${SERVER_IP}/select_candidate`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "ngrok-skip-browser-warning": "true"
+                    },
+                    body: JSON.stringify({
+                        filename: lastResultFilename,
+                        candidate: candidateName
+                    })
+                }).catch((err) => {
+                    console.error("候補選択の記録に失敗:", err);
+                });
+            }
+
             function createSpotifyCandidateCard(rank, item) {
                 const rawUri = SPOTIFY_EPISODES[item.name];
                 if (!rawUri) return null;
@@ -429,7 +448,7 @@
 
                 const title = document.createElement("div");
                 title.className = "audio-title";
-                title.textContent = `${rank}位：${item.name}`;
+                title.textContent = `候補${rank}：${item.name}`;
 
                 const distance = document.createElement("div");
                 distance.className = "audio-distance";
@@ -445,10 +464,22 @@
 
                 if (spotifyIFrameAPI) {
                     const cleanUri = parseToSpotifyUri(rawUri);
+
+                    // 同じ候補について再生開始の記録を二重送信しないためのフラグ
+                    let selectionLogged = false;
+
                     spotifyIFrameAPI.createController(
                         player,
                         { width: "100%", height: "152", uri: cleanUri },
-                        () => {}
+                        (Controller) => {
+                            // 来館者がこの候補を再生したタイミングを検知する
+                            Controller.addListener("playback_update", (e) => {
+                                if (!selectionLogged && e.data && e.data.isPaused === false) {
+                                    selectionLogged = true;
+                                    sendCandidateSelection(item.name);
+                                }
+                            });
+                        }
                     );
                 }
                 return card;
@@ -491,13 +522,22 @@
                         return response.json();
                     })
                     .then((result) => {
+                        // ランキング全件を「n位：対象　距離 x.xxxx」の形式で並べ、
+                        // 1位と2位の行の間に距離差を挿入する
                         let logText = "===== 判定詳細 =====\n\n";
-                        logText += `1位: ${result.best_match}\n`;
-                        logText += `距離: ${result.distance.toFixed(4)}\n`;
-                        logText += `1つ目の閾値: ${result.threshold}\n`;
 
-                        if (result.gap !== null && result.gap !== undefined) {
-                            logText += `1位と2位の距離差: ${result.gap.toFixed(4)}\n`;
+                        result.ranking.forEach((item, index) => {
+                            const rank = index + 1;
+                            logText += `${rank}位：${item.name}　距離 ${item.min.toFixed(4)}\n`;
+
+                            if (rank === 2 && result.gap !== null && result.gap !== undefined) {
+                                logText += `1位と2位の距離差：${result.gap.toFixed(4)}\n`;
+                            }
+                        });
+
+                        logText += `\n1つ目の閾値: ${result.threshold}\n`;
+
+                        if (result.gap_threshold !== null && result.gap_threshold !== undefined) {
                             logText += `2つ目の閾値: ${result.gap_threshold}\n`;
                         }
 
