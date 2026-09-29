@@ -82,6 +82,34 @@
             box-sizing: border-box;
         }
 
+        #player-notice {
+            width: 85%;
+            max-width: 380px;
+            padding: 10px 15px;
+            background-color: #2a2a2a;
+            color: #ccc;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+            text-align: center;
+            box-sizing: border-box;
+            border: 1px solid #444;
+        }
+
+        #retry-message {
+            width: 85%;
+            max-width: 380px;
+            padding: 12px 15px;
+            background-color: #d9534f;
+            color: white;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
         #status-area {
             width: 85%;
             max-width: 380px;
@@ -214,6 +242,9 @@
         <div id="candidate-message" class="message-banner hidden">
             候補が複数あります。該当するものを選択してください。
         </div>
+        <div id="player-notice" class="hidden">
+            再生ボタンが押せない場合、もう一度撮影してください
+        </div>
         <div id="embed-iframe-container">
             <div id="embed-iframe"></div>
         </div>
@@ -226,6 +257,7 @@
             </div>
             <div id="feedback-thanks" class="hidden">ご回答ありがとうございました。</div>
         </div>
+        <div id="retry-message" class="hidden">角度を変えて撮影し直してください</div>
         <button id="back-btn" class="btn">もう一度判定</button>
         <div id="status-area">判定結果を表示しています...</div>
     </div>
@@ -272,6 +304,8 @@
             const playerContainer = document.getElementById("embed-iframe-container");
             const audioResults = document.getElementById("audio-results");
             const candidateMessage = document.getElementById("candidate-message");
+            const playerNotice = document.getElementById("player-notice");
+            const retryMessage = document.getElementById("retry-message");
 
             // 正誤フィードバック関連の要素
             const feedbackArea = document.getElementById("feedback-area");
@@ -450,16 +484,11 @@
                 title.className = "audio-title";
                 title.textContent = `候補${rank}：${item.name}`;
 
-                const distance = document.createElement("div");
-                distance.className = "audio-distance";
-                distance.textContent = `距離：${item.min.toFixed(4)}`;
-
                 const player = document.createElement("div");
                 player.className = "candidate-player";
                 player.id = `candidate-player-${rank}-${Date.now()}`;
 
                 card.appendChild(title);
-                card.appendChild(distance);
                 card.appendChild(player);
 
                 if (spotifyIFrameAPI) {
@@ -490,6 +519,8 @@
                 audioResults.innerHTML = "";
                 playerContainer.style.display = "none";
                 candidateMessage.classList.add("hidden");
+                playerNotice.classList.add("hidden");
+                retryMessage.classList.add("hidden");
                 resetFeedbackUI();
                 statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
 
@@ -544,8 +575,9 @@
                         showResultScreen();
 
                         if (!result.success) {
-                            logText += "\n判定に失敗しました\n距離が閾値以上です。\n角度を変えて撮影し直してください。";
+                            logText += "\n判定に失敗しました\n距離が閾値以上です。";
                             statusArea.textContent = logText;
+                            retryMessage.classList.remove("hidden");
                             return;
                         }
 
@@ -553,6 +585,10 @@
                         if (result.filename) {
                             showFeedbackUI(result.filename);
                         }
+
+                        // Spotifyプレイヤーが表示される場合は、再生ボタンが
+                        // 押せないことがある旨の案内を常に表示する
+                        playerNotice.classList.remove("hidden");
 
                         if (result.low_confidence) {
                             candidateMessage.classList.remove("hidden");
@@ -595,6 +631,8 @@
             backBtn.addEventListener("click", () => {
                 audioResults.innerHTML = "";
                 candidateMessage.classList.add("hidden");
+                playerNotice.classList.add("hidden");
+                retryMessage.classList.add("hidden");
                 resetFeedbackUI();
                 statusArea.textContent = "判定結果を表示しています...";
                 playerContainer.style.display = "none";
