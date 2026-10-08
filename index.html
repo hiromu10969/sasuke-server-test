@@ -230,6 +230,7 @@
     <!-- 画面①：カメラ画面 -->
     <div id="camera-screen" class="screen">
         <h1>旧豊田佐助邸 画像認識音声ガイド</h1>
+        <div id="capture-guide" class="message-banner"></div>
         <div id="video-container">
             <video id="camera-view" autoplay playsinline muted></video>
         </div>
@@ -306,6 +307,7 @@
             const candidateMessage = document.getElementById("candidate-message");
             const playerNotice = document.getElementById("player-notice");
             const retryMessage = document.getElementById("retry-message");
+            const captureGuide = document.getElementById("capture-guide");
 
             // 正誤フィードバック関連の要素
             const feedbackArea = document.getElementById("feedback-area");
@@ -314,6 +316,20 @@
             const feedbackThanks = document.getElementById("feedback-thanks");
 
             let currentStream = null;
+
+            // 撮影する方向（この順に撮影する）
+            const CAPTURE_STEPS = ["部屋の左側", "部屋の正面", "部屋の右側"];
+
+            // 撮影済みの画像（Blob）
+            let capturedBlobs = [];
+
+            // 撮影ガイドとボタン表示を、現在の撮影枚数に合わせて更新
+            function updateCaptureGuide() {
+                const n = capturedBlobs.length;
+                captureGuide.textContent =
+                    `${n + 1}/${CAPTURE_STEPS.length} 枚目：${CAPTURE_STEPS[n]}を撮影してください`;
+                matchBtn.textContent = `${n + 1}枚目を撮影（${CAPTURE_STEPS[n]}）`;
+            }
 
             // 直近の判定結果に紐づく画像ファイル名（フィードバック送信時に使用）
             let lastResultFilename = null;
@@ -334,7 +350,7 @@
                     video.srcObject = currentStream;
                     await video.play();
 
-                    matchBtn.textContent = "判定開始";
+                    updateCaptureGuide();
                     matchBtn.disabled = false;
                 } catch (err) {
                     matchBtn.textContent = "カメラ起動エラー";
@@ -536,8 +552,23 @@
                         return;
                     }
 
+                    capturedBlobs.push(blob);
+
+                    // 3枚揃うまでは送信せず、次の撮影へ
+                    if (capturedBlobs.length < CAPTURE_STEPS.length) {
+                        updateCaptureGuide();
+                        matchBtn.disabled = false;
+                        return;
+                    }
+
+                    // 3枚揃ったので、まとめて送信
+                    const blobsToSend = capturedBlobs;
+                    capturedBlobs = [];
+
                     const formData = new FormData();
-                    formData.append("image", blob, "capture.jpg");
+                    blobsToSend.forEach((b, i) => {
+                        formData.append("image", b, `capture_${i + 1}.jpg`);
+                    });
 
                     fetch(`${SERVER_IP}/predict`, {
                         method: "POST",
@@ -629,6 +660,7 @@
             });
 
             backBtn.addEventListener("click", () => {
+                capturedBlobs = [];
                 audioResults.innerHTML = "";
                 candidateMessage.classList.add("hidden");
                 playerNotice.classList.add("hidden");
