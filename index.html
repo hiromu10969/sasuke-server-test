@@ -68,6 +68,17 @@
             background-color: #555;
         }
 
+        #switch-camera-btn {
+            background-color: #3b6ea5;
+            margin-top: 0;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        #switch-camera-btn:disabled {
+            background-color: #555;
+        }
+
         .message-banner {
             width: 85%;
             max-width: 380px;
@@ -237,6 +248,7 @@
             <video id="camera-view" autoplay playsinline muted></video>
         </div>
         <button id="match-btn" class="btn" disabled>カメラ起動中...</button>
+        <button id="switch-camera-btn" class="btn" disabled>カメラ切替（現在：外カメラ）</button>
     </div>
 
     <!-- 画面②：結果画面 -->
@@ -302,6 +314,7 @@
             const video = document.getElementById("camera-view");
             const canvas = document.getElementById("capture-canvas");
             const matchBtn = document.getElementById("match-btn");
+            const switchCameraBtn = document.getElementById("switch-camera-btn");
             const backBtn = document.getElementById("back-btn");
             const statusArea = document.getElementById("status-area");
             const playerContainer = document.getElementById("embed-iframe-container");
@@ -318,65 +331,46 @@
 
             let currentStream = null;
 
+            // 現在選択中のカメラ（"environment"=外カメラ / "user"=インカメラ）
+            let currentFacingMode = "environment";
+
             // 直近の判定結果に紐づく画像ファイル名（フィードバック送信時に使用）
             let lastResultFilename = null;
 
-            // 背面カメラを優先して取得する（インカメラへの自動フォールバックを防ぐ）
-            async function getBackCameraStream() {
-                // ① まず「背面を必須」で試す（満たせなければエラーになる）
+            // 切替ボタンの表示を現在のカメラに合わせて更新
+            function updateSwitchLabel() {
+                const label = currentFacingMode === "environment" ? "外カメラ" : "インカメラ";
+                switchCameraBtn.textContent = `カメラ切替（現在：${label}）`;
+            }
+
+            // 指定した向きのカメラを取得（まず厳密指定、だめなら通常指定にフォールバック）
+            async function getCameraStream(mode) {
                 try {
                     return await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: { exact: "environment" },
-                            width: { ideal: 640 },
-                            height: { ideal: 480 }
-                        },
+                        video: { facingMode: { exact: mode }, width: 640, height: 480 },
                         audio: false
                     });
                 } catch (e) {
-                    console.warn("facingMode exact environment 失敗:", e);
+                    console.warn(`facingMode exact ${mode} 失敗:`, e);
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: mode, width: 640, height: 480 },
+                        audio: false
+                    });
                 }
-
-                // ② 一度取得してデバイス名(label)が読めるようにしてから、背面カメラを探す
-                try {
-                    const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                    tmp.getTracks().forEach(t => t.stop());
-
-                    const devices = await navigator.mediaDevices.enumerateDevices();
-                    const back = devices.find(d =>
-                        d.kind === "videoinput" && /back|rear|environment|背面/i.test(d.label)
-                    );
-                    if (back) {
-                        return await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                deviceId: { exact: back.deviceId },
-                                width: { ideal: 640 },
-                                height: { ideal: 480 }
-                            },
-                            audio: false
-                        });
-                    }
-                } catch (e) {
-                    console.warn("deviceId による背面カメラ選択に失敗:", e);
-                }
-
-                // ③ それでもだめなら最後の手段（従来と同等の指定）
-                return await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment", width: 640, height: 480 },
-                    audio: false
-                });
             }
 
             // カメラの起動処理
             async function startCamera() {
                 matchBtn.disabled = true;
+                switchCameraBtn.disabled = true;
                 matchBtn.textContent = "カメラ起動中...";
+                updateSwitchLabel();
 
                 try {
                     // 既存ストリームがあれば念のため停止
                     stopCamera();
 
-                    currentStream = await getBackCameraStream();
+                    currentStream = await getCameraStream(currentFacingMode);
                     video.srcObject = currentStream;
                     await video.play();
 
@@ -386,6 +380,9 @@
                     matchBtn.textContent = "カメラ起動エラー";
                     matchBtn.disabled = true;
                     console.error("カメラ起動失敗:", err);
+                } finally {
+                    // 起動に失敗しても、もう一方のカメラを試せるよう切替ボタンは有効に戻す
+                    switchCameraBtn.disabled = false;
                 }
             }
 
@@ -672,6 +669,12 @@
                         matchBtn.disabled = false;
                     });
                 }, "image/jpeg", 0.8);
+            });
+
+            // 外カメラ／インカメラの切り替え
+            switchCameraBtn.addEventListener("click", () => {
+                currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+                startCamera();
             });
 
             backBtn.addEventListener("click", () => {
