@@ -321,6 +321,52 @@
             // 直近の判定結果に紐づく画像ファイル名（フィードバック送信時に使用）
             let lastResultFilename = null;
 
+            // 背面カメラを優先して取得する（インカメラへの自動フォールバックを防ぐ）
+            async function getBackCameraStream() {
+                // ① まず「背面を必須」で試す（満たせなければエラーになる）
+                try {
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: { exact: "environment" },
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        },
+                        audio: false
+                    });
+                } catch (e) {
+                    console.warn("facingMode exact environment 失敗:", e);
+                }
+
+                // ② 一度取得してデバイス名(label)が読めるようにしてから、背面カメラを探す
+                try {
+                    const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    tmp.getTracks().forEach(t => t.stop());
+
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const back = devices.find(d =>
+                        d.kind === "videoinput" && /back|rear|environment|背面/i.test(d.label)
+                    );
+                    if (back) {
+                        return await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                deviceId: { exact: back.deviceId },
+                                width: { ideal: 640 },
+                                height: { ideal: 480 }
+                            },
+                            audio: false
+                        });
+                    }
+                } catch (e) {
+                    console.warn("deviceId による背面カメラ選択に失敗:", e);
+                }
+
+                // ③ それでもだめなら最後の手段（従来と同等の指定）
+                return await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment" },
+                    audio: false
+                });
+            }
+
             // カメラの起動処理
             async function startCamera() {
                 matchBtn.disabled = true;
@@ -330,10 +376,7 @@
                     // 既存ストリームがあれば念のため停止
                     stopCamera();
 
-                    currentStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment", width: 640, height: 480 },
-                        audio: false
-                    });
+                    currentStream = await getBackCameraStream();
                     video.srcObject = currentStream;
                     await video.play();
 
