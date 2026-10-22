@@ -68,6 +68,17 @@
             background-color: #555;
         }
 
+        #switch-camera-btn {
+            background-color: #3b6ea5;
+            margin-top: 0;
+            padding: 10px;
+            font-size: 0.95rem;
+        }
+
+        #switch-camera-btn:disabled {
+            background-color: #555;
+        }
+
         .message-banner {
             width: 85%;
             max-width: 380px;
@@ -233,11 +244,11 @@
         <div id="shooting-guide" class="message-banner">
             部屋には入らず、<br>廊下から部屋を撮影してください。
         </div>
-        <div id="capture-guide" class="message-banner"></div>
         <div id="video-container">
             <video id="camera-view" autoplay playsinline muted></video>
         </div>
         <button id="match-btn" class="btn" disabled>カメラ起動中...</button>
+        <button id="switch-camera-btn" class="btn" disabled>カメラ切替（現在：外カメラ）</button>
     </div>
 
     <!-- 画面②：結果画面 -->
@@ -303,6 +314,7 @@
             const video = document.getElementById("camera-view");
             const canvas = document.getElementById("capture-canvas");
             const matchBtn = document.getElementById("match-btn");
+            const switchCameraBtn = document.getElementById("switch-camera-btn");
             const backBtn = document.getElementById("back-btn");
             const statusArea = document.getElementById("status-area");
             const playerContainer = document.getElementById("embed-iframe-container");
@@ -310,7 +322,6 @@
             const candidateMessage = document.getElementById("candidate-message");
             const playerNotice = document.getElementById("player-notice");
             const retryMessage = document.getElementById("retry-message");
-            const captureGuide = document.getElementById("capture-guide");
 
             // 正誤フィードバック関連の要素
             const feedbackArea = document.getElementById("feedback-area");
@@ -320,45 +331,58 @@
 
             let currentStream = null;
 
-            // 撮影する方向（この順に撮影する）
-            const CAPTURE_STEPS = ["部屋の左側", "部屋の正面", "部屋の右側"];
-
-            // 撮影済みの画像（Blob）
-            let capturedBlobs = [];
-
-            // 撮影ガイドとボタン表示を、現在の撮影枚数に合わせて更新
-            function updateCaptureGuide() {
-                const n = capturedBlobs.length;
-                captureGuide.textContent =
-                    `${n + 1}/${CAPTURE_STEPS.length} 枚目：${CAPTURE_STEPS[n]}を撮影してください`;
-                matchBtn.textContent = `${n + 1}枚目を撮影（${CAPTURE_STEPS[n]}）`;
-            }
+            // 現在選択中のカメラ（"environment"=外カメラ / "user"=インカメラ）
+            let currentFacingMode = "environment";
 
             // 直近の判定結果に紐づく画像ファイル名（フィードバック送信時に使用）
             let lastResultFilename = null;
 
+            // 切替ボタンの表示を現在のカメラに合わせて更新
+            function updateSwitchLabel() {
+                const label = currentFacingMode === "environment" ? "外カメラ" : "インカメラ";
+                switchCameraBtn.textContent = `カメラ切替（現在：${label}）`;
+            }
+
+            // 指定した向きのカメラを取得（まず厳密指定、だめなら通常指定にフォールバック）
+            async function getCameraStream(mode) {
+                try {
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { exact: mode }, width: 640, height: 480 },
+                        audio: false
+                    });
+                } catch (e) {
+                    console.warn(`facingMode exact ${mode} 失敗:`, e);
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: mode, width: 640, height: 480 },
+                        audio: false
+                    });
+                }
+            }
+
             // カメラの起動処理
             async function startCamera() {
                 matchBtn.disabled = true;
+                switchCameraBtn.disabled = true;
                 matchBtn.textContent = "カメラ起動中...";
+                updateSwitchLabel();
 
                 try {
                     // 既存ストリームがあれば念のため停止
                     stopCamera();
 
-                    currentStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment", width: 640, height: 480 },
-                        audio: false
-                    });
+                    currentStream = await getCameraStream(currentFacingMode);
                     video.srcObject = currentStream;
                     await video.play();
 
-                    updateCaptureGuide();
+                    matchBtn.textContent = "判定開始";
                     matchBtn.disabled = false;
                 } catch (err) {
                     matchBtn.textContent = "カメラ起動エラー";
                     matchBtn.disabled = true;
                     console.error("カメラ起動失敗:", err);
+                } finally {
+                    // 起動に失敗しても、もう一方のカメラを試せるよう切替ボタンは有効に戻す
+                    switchCameraBtn.disabled = false;
                 }
             }
 
@@ -555,23 +579,8 @@
                         return;
                     }
 
-                    capturedBlobs.push(blob);
-
-                    // 3枚揃うまでは送信せず、次の撮影へ
-                    if (capturedBlobs.length < CAPTURE_STEPS.length) {
-                        updateCaptureGuide();
-                        matchBtn.disabled = false;
-                        return;
-                    }
-
-                    // 3枚揃ったので、まとめて送信
-                    const blobsToSend = capturedBlobs;
-                    capturedBlobs = [];
-
                     const formData = new FormData();
-                    blobsToSend.forEach((b, i) => {
-                        formData.append("image", b, `capture_${i + 1}.jpg`);
-                    });
+                    formData.append("image", blob, "capture.jpg");
 
                     fetch(`${SERVER_IP}/predict`, {
                         method: "POST",
@@ -662,8 +671,13 @@
                 }, "image/jpeg", 0.8);
             });
 
+            // 外カメラ／インカメラの切り替え
+            switchCameraBtn.addEventListener("click", () => {
+                currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+                startCamera();
+            });
+
             backBtn.addEventListener("click", () => {
-                capturedBlobs = [];
                 audioResults.innerHTML = "";
                 candidateMessage.classList.add("hidden");
                 playerNotice.classList.add("hidden");
