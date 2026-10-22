@@ -362,7 +362,7 @@
 
                 // ③ それでもだめなら最後の手段（従来と同等の指定）
                 return await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment" },
+                    video: { facingMode: "environment", width: 640, height: 480 },
                     audio: false
                 });
             }
