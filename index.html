@@ -183,6 +183,53 @@
             display: none;
         }
 
+        /* サーバーへ送信した画像のプレビュー */
+        #captured-area {
+            width: 90%;
+            max-width: 400px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        #captured-image {
+            width: 100%;
+            max-height: 240px;
+            object-fit: contain;
+            background-color: black;
+            border-radius: 8px;
+            display: block;
+        }
+
+        #captured-caption {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-top: 6px;
+        }
+
+        /* 判定中インジケーター */
+        #judging-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .spinner {
+            width: 22px;
+            height: 22px;
+            border: 3px solid #555;
+            border-top-color: #28a745;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         #feedback-area {
             width: 85%;
             max-width: 380px;
@@ -254,6 +301,14 @@
     <!-- 画面②：結果画面 -->
     <div id="result-screen" class="screen hidden">
         <h1>判定結果</h1>
+        <div id="captured-area">
+            <img id="captured-image" alt="判定に使用した画像">
+            <div id="captured-caption">判定に使用した画像</div>
+            <div id="judging-indicator" class="hidden">
+                <div class="spinner"></div>
+                <span>判定中...</span>
+            </div>
+        </div>
         <div id="candidate-message" class="message-banner hidden">
             候補が複数あります。該当するものを選択してください。
         </div>
@@ -323,6 +378,10 @@
             const playerNotice = document.getElementById("player-notice");
             const retryMessage = document.getElementById("retry-message");
 
+            // 送信画像のプレビューと判定中表示の要素
+            const capturedImage = document.getElementById("captured-image");
+            const judgingIndicator = document.getElementById("judging-indicator");
+
             // 正誤フィードバック関連の要素
             const feedbackArea = document.getElementById("feedback-area");
             const feedbackYesBtn = document.getElementById("feedback-yes-btn");
@@ -336,6 +395,9 @@
 
             // 直近の判定結果に紐づく画像ファイル名（フィードバック送信時に使用）
             let lastResultFilename = null;
+
+            // 送信画像プレビュー用のオブジェクトURL（不要になったら解放する）
+            let capturedUrl = null;
 
             // 切替ボタンの表示を現在のカメラに合わせて更新
             function updateSwitchLabel() {
@@ -579,6 +641,16 @@
                         return;
                     }
 
+                    // 撮影が完了した時点で、送信する画像を表示して「判定中」に切り替える
+                    // （この時点でカメラを動かしても判定には影響しない）
+                    if (capturedUrl) URL.revokeObjectURL(capturedUrl);
+                    capturedUrl = URL.createObjectURL(blob);
+                    capturedImage.src = capturedUrl;
+                    judgingIndicator.classList.remove("hidden");
+                    statusArea.classList.add("hidden");
+                    backBtn.disabled = true;
+                    showResultScreen();
+
                     const formData = new FormData();
                     formData.append("image", blob, "capture.jpg");
 
@@ -666,6 +738,9 @@
                             `詳細:\n${err.message}\n`;
                     })
                     .finally(() => {
+                        judgingIndicator.classList.add("hidden");
+                        statusArea.classList.remove("hidden");
+                        backBtn.disabled = false;
                         matchBtn.disabled = false;
                     });
                 }, "image/jpeg", 0.8);
@@ -685,6 +760,11 @@
                 resetFeedbackUI();
                 statusArea.textContent = "判定結果を表示しています...";
                 playerContainer.style.display = "none";
+                if (capturedUrl) {
+                    URL.revokeObjectURL(capturedUrl);
+                    capturedUrl = null;
+                }
+                capturedImage.removeAttribute("src");
                 showCameraScreen();
             });
 
