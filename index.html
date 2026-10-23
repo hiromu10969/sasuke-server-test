@@ -168,9 +168,45 @@
             margin-bottom: 8px;
         }
 
-        .candidate-player {
+        /* 部屋の確認用画像（3枚）。認識用DBの画像とは別物 */
+        .room-images {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .room-images img {
+            flex: 1;
+            min-width: 0;
+            width: 33.33%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            background-color: black;
+            border-radius: 6px;
+        }
+
+        /* 「この部屋のガイドを聞く」ボタン（カード内なので幅100%） */
+        .listen-btn {
             width: 100%;
-            min-height: 152px;
+            max-width: none;
+            margin: 0;
+        }
+
+        /* Spotifyプレイヤー置き場。ボタンを押すまでは高さ0で非表示 */
+        .player-wrap {
+            height: 0;
+            overflow: hidden;
+        }
+
+        .player-wrap.open {
+            height: auto;
+            margin-top: 10px;
+        }
+
+        .room-note {
+            font-size: 0.8rem;
+            color: #e6a23c;
+            margin-top: 8px;
         }
 
         #back-btn {
@@ -339,19 +375,24 @@
         const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
         const SPOTIFY_EPISODES = {
-            "お気に入りの部屋": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "ガス灯": "https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e",
-            "きんだみ襖": "https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d",
-            "シャンデリア": "https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa",
-            "ステレオ": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "トイレ": "https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3",
-            "引手": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "夏障子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "換気口": "https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf",
-            "筋交": "https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3",
-            "波型無双連子": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
-            "覆輪目地": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b"
+            "1": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "2": "https://open.spotify.com/episode/78j0VmMwSKyguwanEBLbEv?si=90b1771f97d14b6e",
+            "3": "https://open.spotify.com/episode/5xXtixpynrC8JlXOoP3V9b?si=03670599321e479d",
+            "4": "https://open.spotify.com/episode/0DvrHzuccMeEtGWMjDASwO?si=b931f0e4aa2541aa",
+            "5": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "6": "https://open.spotify.com/episode/6nLezXa07BedIgkEicr3gI?si=4c4c2a285b9840b3",
+            "7": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "8": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "9": "https://open.spotify.com/episode/5x764PkVzDgiFCYg2ggqRS?si=2a5b717b214b4bbf",
+            "10": "https://open.spotify.com/episode/7HMlKfKZyujAcvR7OY1y3v?si=1def4d606fdf49b3",
+            "11": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
+            "お手洗い": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b"
         };
+
+        // 部屋の確認用画像（認識用DBの画像とは別物）
+        // 配置: index.html と同じ場所の room-images/<部屋名>/1.jpg, 2.jpg, 3.jpg
+        const ROOM_IMAGE_DIR = "room-images";
+        const ROOM_IMAGE_FILES = ["1.jpg", "2.jpg", "3.jpg"];
 
         let spotifyIFrameAPI = null;
         let embedController = null;
@@ -578,44 +619,111 @@
                 });
             }
 
-            function createSpotifyCandidateCard(rank, item) {
+            // 部屋カード（部屋名・確認用画像3枚・「この部屋のガイドを聞く」ボタン）を作る
+            // onListen: ボタンが初めて押されたときに1回だけ呼ばれる（候補選択の記録用）
+            function createRoomCard(titleText, item, onListen) {
                 const rawUri = SPOTIFY_EPISODES[item.name];
-                if (!rawUri) return null;
 
                 const card = document.createElement("div");
                 card.className = "audio-card";
 
                 const title = document.createElement("div");
                 title.className = "audio-title";
-                title.textContent = `候補${rank}：${item.name}`;
-
-                const player = document.createElement("div");
-                player.className = "candidate-player";
-                player.id = `candidate-player-${rank}-${Date.now()}`;
-
+                title.textContent = titleText;
                 card.appendChild(title);
-                card.appendChild(player);
 
-                if (spotifyIFrameAPI) {
-                    const cleanUri = parseToSpotifyUri(rawUri);
+                // 確認用の画像3枚（読み込めない画像は枠だけ残して非表示）
+                const images = document.createElement("div");
+                images.className = "room-images";
+                ROOM_IMAGE_FILES.forEach((file) => {
+                    const img = document.createElement("img");
+                    img.src = `${ROOM_IMAGE_DIR}/${encodeURIComponent(item.name)}/${file}`;
+                    img.alt = `${item.name}の画像`;
+                    img.onerror = () => { img.style.visibility = "hidden"; };
+                    images.appendChild(img);
+                });
+                card.appendChild(images);
 
-                    // 同じ候補について再生開始の記録を二重送信しないためのフラグ
-                    let selectionLogged = false;
+                const listenBtn = document.createElement("button");
+                listenBtn.className = "btn listen-btn";
+                listenBtn.textContent = "この部屋のガイドを聞く";
+                card.appendChild(listenBtn);
 
+                // 音声URLが未登録の部屋はボタンを押せなくする
+                if (!rawUri) {
+                    listenBtn.disabled = true;
+                    listenBtn.textContent = "この部屋のガイドは準備中です";
+                    return card;
+                }
+
+                const note = document.createElement("div");
+                note.className = "room-note hidden";
+                note.textContent = "プレイヤーを読み込み中です。少し待ってからもう一度押してください。";
+                card.appendChild(note);
+
+                const playerWrap = document.createElement("div");
+                playerWrap.className = "player-wrap";
+                card.appendChild(playerWrap);
+
+                let controller = null;
+                let creating = false;
+                let playRequested = false;
+                let listenLogged = false;
+
+                // Spotifyプレイヤーを（非表示のまま）先に作っておく。
+                // ボタン押下時にそのまま play() を呼べるので、自動再生されやすくなる
+                function ensureController() {
+                    if (controller || creating || !spotifyIFrameAPI) return;
+                    creating = true;
+                    const mount = document.createElement("div");
+                    playerWrap.appendChild(mount);
                     spotifyIFrameAPI.createController(
-                        player,
-                        { width: "100%", height: "152", uri: cleanUri },
+                        mount,
+                        { width: "100%", height: "152", uri: parseToSpotifyUri(rawUri) },
                         (Controller) => {
-                            // 来館者がこの候補を再生したタイミングを検知する
-                            Controller.addListener("playback_update", (e) => {
-                                if (!selectionLogged && e.data && e.data.isPaused === false) {
-                                    selectionLogged = true;
-                                    sendCandidateSelection(item.name);
-                                }
-                            });
+                            controller = Controller;
+                            creating = false;
+                            if (playRequested) Controller.play();
                         }
                     );
                 }
+
+                // 他の部屋のボタンが押されたときに、この部屋のプレイヤーを閉じる
+                card._closePlayer = () => {
+                    playRequested = false;
+                    if (controller) {
+                        try { controller.pause(); } catch (e) { console.warn(e); }
+                    }
+                    playerWrap.classList.remove("open");
+                };
+
+                ensureController();
+
+                listenBtn.addEventListener("click", () => {
+                    // 他の部屋のプレイヤーは閉じて、押した部屋のプレイヤーだけ表示する
+                    audioResults.querySelectorAll(".audio-card").forEach((other) => {
+                        if (other !== card && other._closePlayer) other._closePlayer();
+                    });
+
+                    if (onListen && !listenLogged) {
+                        listenLogged = true;
+                        onListen();
+                    }
+
+                    if (playerWrap.classList.contains("open")) return;
+
+                    ensureController();
+                    if (!controller && !creating) {
+                        // Spotify APIがまだ読み込まれていない
+                        note.classList.remove("hidden");
+                        return;
+                    }
+                    note.classList.add("hidden");
+                    playerWrap.classList.add("open");
+                    playRequested = true;
+                    if (controller) controller.play();
+                });
+
                 return card;
             }
 
@@ -712,17 +820,20 @@
 
                             const top3 = result.ranking.slice(0, 3);
                             top3.forEach((item, index) => {
-                                const card = createSpotifyCandidateCard(index + 1, item);
-                                if (card) audioResults.appendChild(card);
+                                const card = createRoomCard(
+                                    `候補${index + 1}：${item.name}`,
+                                    item,
+                                    () => sendCandidateSelection(item.name)
+                                );
+                                audioResults.appendChild(card);
                             });
                         } else {
                             logText += "\n距離差が十分に大きいため1位を採用しました。";
                             statusArea.textContent = logText;
 
-                            const bestUri = SPOTIFY_EPISODES[result.best_match];
-                            if (bestUri && spotifyIFrameAPI) {
-                                playSpotifyEpisode(bestUri);
-                            } else {
+                            const bestName = result.best_match;
+                            audioResults.appendChild(createRoomCard(bestName, { name: bestName }));
+                            if (!SPOTIFY_EPISODES[bestName]) {
                                 statusArea.textContent = logText + "\nSpotify URIが見つかりません。";
                             }
                         }
