@@ -171,6 +171,7 @@
         /* 部屋の確認用画像（3枚）。認識用DBの画像とは別物 */
         .room-images {
             display: flex;
+            align-items: center;
             gap: 6px;
             margin-bottom: 10px;
         }
@@ -179,9 +180,7 @@
             flex: 1;
             min-width: 0;
             width: 33.33%;
-            aspect-ratio: 4 / 3;
-            object-fit: cover;
-            background-color: black;
+            height: auto;
             border-radius: 6px;
         }
 
@@ -388,6 +387,25 @@
             "11": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b",
             "お手洗い": "https://open.spotify.com/episode/3c02kQl95palK7PEBBpSdz?si=f04c0f972185467b"
         };
+
+        // 画面に表示する部屋名（キーはサーバーが返す部屋名。URL・画像フォルダ名にはキーをそのまま使う）
+        const ROOM_DISPLAY_NAMES = {
+            "1": "洋館1階・応接間",
+            "2": "和館1階・佐助翁の居間",
+            "3": "和館1階・佐助翁の食堂",
+            "4": "和館1階・佐助翁の寝室",
+            "5": "和館1階・仏間",
+            "6": "和館2階・一の間",
+            "7": "和館2階・三の間",
+            "8": "和館2階・二の間",
+            "9": "和館2階・北東の間",
+            "10": "洋館2階・和洋折衷の客室",
+            "11": "洋館2階・奥の客室",
+            "お手洗い": "当時のお手洗い"
+        };
+        function getRoomLabel(name) {
+            return ROOM_DISPLAY_NAMES[name] || name;
+        }
 
         // 部屋の確認用画像（認識用DBの画像とは別物）
         // 配置: index.html と同じ場所の room-images/<部屋名>/1.jpg, 2.jpg, 3.jpg
@@ -638,7 +656,7 @@
                 ROOM_IMAGE_FILES.forEach((file) => {
                     const img = document.createElement("img");
                     img.src = `${ROOM_IMAGE_DIR}/${encodeURIComponent(item.name)}/${file}`;
-                    img.alt = `${item.name}の画像`;
+                    img.alt = `${getRoomLabel(item.name)}の画像`;
                     img.onerror = () => { img.style.visibility = "hidden"; };
                     images.appendChild(img);
                 });
@@ -782,7 +800,7 @@
 
                         result.ranking.forEach((item, index) => {
                             const rank = index + 1;
-                            logText += `${rank}位：${item.name}　距離 ${item.min.toFixed(4)}\n`;
+                            logText += `${rank}位：${getRoomLabel(item.name)}　距離 ${item.min.toFixed(4)}\n`;
 
                             if (rank === 2 && result.gap !== null && result.gap !== undefined) {
                                 logText += `1位と2位の距離差：${result.gap.toFixed(4)}\n`;
@@ -821,7 +839,7 @@
                             const top3 = result.ranking.slice(0, 3);
                             top3.forEach((item, index) => {
                                 const card = createRoomCard(
-                                    `候補${index + 1}：${item.name}`,
+                                    `候補${index + 1}：${getRoomLabel(item.name)}`,
                                     item,
                                     () => sendCandidateSelection(item.name)
                                 );
@@ -832,7 +850,7 @@
                             statusArea.textContent = logText;
 
                             const bestName = result.best_match;
-                            audioResults.appendChild(createRoomCard(bestName, { name: bestName }));
+                            audioResults.appendChild(createRoomCard(getRoomLabel(bestName), { name: bestName }));
                             if (!SPOTIFY_EPISODES[bestName]) {
                                 statusArea.textContent = logText + "\nSpotify URIが見つかりません。";
                             }
