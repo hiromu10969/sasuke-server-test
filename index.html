@@ -68,17 +68,6 @@
             background-color: #555;
         }
 
-        #switch-camera-btn {
-            background-color: #3b6ea5;
-            margin-top: 0;
-            padding: 10px;
-            font-size: 0.95rem;
-        }
-
-        #switch-camera-btn:disabled {
-            background-color: #555;
-        }
-
         .message-banner {
             width: 85%;
             max-width: 380px;
@@ -91,20 +80,6 @@
             margin-bottom: 15px;
             text-align: center;
             box-sizing: border-box;
-        }
-
-        #player-notice {
-            width: 85%;
-            max-width: 380px;
-            padding: 10px 15px;
-            background-color: #2a2a2a;
-            color: #ccc;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            text-align: center;
-            box-sizing: border-box;
-            border: 1px solid #444;
         }
 
         #retry-message {
@@ -330,7 +305,6 @@
             <video id="camera-view" autoplay playsinline muted></video>
         </div>
         <button id="match-btn" class="btn" disabled>カメラ起動中...</button>
-        <button id="switch-camera-btn" class="btn" disabled>カメラ切替（現在：外カメラ）</button>
     </div>
 
     <!-- 画面②：結果画面 -->
@@ -347,22 +321,19 @@
         <div id="candidate-message" class="message-banner hidden">
             候補が複数あります。該当するものを選択してください。
         </div>
-        <div id="player-notice" class="hidden">
-            再生ボタンが押せない場合、もう一度撮影してください
-        </div>
         <div id="embed-iframe-container">
             <div id="embed-iframe"></div>
         </div>
         <div id="audio-results"></div>
         <div id="feedback-area" class="hidden">
-            <div id="feedback-question">正しいガイドが表示されましたか？</div>
+            <div id="feedback-question">正しい部屋が表示されましたか？</div>
             <div id="feedback-buttons">
                 <button id="feedback-yes-btn" class="feedback-btn">はい</button>
                 <button id="feedback-no-btn" class="feedback-btn">いいえ</button>
             </div>
             <div id="feedback-thanks" class="hidden">ご回答ありがとうございました。</div>
         </div>
-        <div id="retry-message" class="hidden">角度を変えて撮影し直してください</div>
+        <div id="retry-message" class="hidden">角度を変えて撮影し直してください<br>なるべく人が写り込まないようにしてください</div>
         <button id="back-btn" class="btn">もう一度判定</button>
         <div id="status-area">判定結果を表示しています...</div>
     </div>
@@ -371,6 +342,10 @@
 
     <!-- Spotify API -->
     <script>
+        // 判定詳細（各部屋の距離・閾値など）を画面に表示するか
+        // 来館者向けは false。確認・調整するときは true にする
+        const SHOW_JUDGE_DETAILS = false;
+
         const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
         const SPOTIFY_EPISODES = {
@@ -428,13 +403,11 @@
             const video = document.getElementById("camera-view");
             const canvas = document.getElementById("capture-canvas");
             const matchBtn = document.getElementById("match-btn");
-            const switchCameraBtn = document.getElementById("switch-camera-btn");
             const backBtn = document.getElementById("back-btn");
             const statusArea = document.getElementById("status-area");
             const playerContainer = document.getElementById("embed-iframe-container");
             const audioResults = document.getElementById("audio-results");
             const candidateMessage = document.getElementById("candidate-message");
-            const playerNotice = document.getElementById("player-notice");
             const retryMessage = document.getElementById("retry-message");
 
             // 送信画像のプレビューと判定中表示の要素
@@ -458,12 +431,6 @@
             // 送信画像プレビュー用のオブジェクトURL（不要になったら解放する）
             let capturedUrl = null;
 
-            // 切替ボタンの表示を現在のカメラに合わせて更新
-            function updateSwitchLabel() {
-                const label = currentFacingMode === "environment" ? "外カメラ" : "インカメラ";
-                switchCameraBtn.textContent = `カメラ切替（現在：${label}）`;
-            }
-
             // 指定した向きのカメラを取得（まず厳密指定、だめなら通常指定にフォールバック）
             async function getCameraStream(mode) {
                 try {
@@ -483,9 +450,7 @@
             // カメラの起動処理
             async function startCamera() {
                 matchBtn.disabled = true;
-                switchCameraBtn.disabled = true;
                 matchBtn.textContent = "カメラ起動中...";
-                updateSwitchLabel();
 
                 try {
                     // 既存ストリームがあれば念のため停止
@@ -501,9 +466,6 @@
                     matchBtn.textContent = "カメラ起動エラー";
                     matchBtn.disabled = true;
                     console.error("カメラ起動失敗:", err);
-                } finally {
-                    // 起動に失敗しても、もう一方のカメラを試せるよう切替ボタンは有効に戻す
-                    switchCameraBtn.disabled = false;
                 }
             }
 
@@ -750,7 +712,6 @@
                 audioResults.innerHTML = "";
                 playerContainer.style.display = "none";
                 candidateMessage.classList.add("hidden");
-                playerNotice.classList.add("hidden");
                 retryMessage.classList.add("hidden");
                 resetFeedbackUI();
                 statusArea.textContent = "サーバーへ画像送信中...\n照合しています...";
@@ -776,6 +737,9 @@
                     statusArea.classList.add("hidden");
                     backBtn.disabled = true;
                     showResultScreen();
+
+                    // 通信エラーのときは、判定詳細を非表示にしていてもエラー内容を表示する
+                    let communicationError = false;
 
                     const formData = new FormData();
                     formData.append("image", blob, "capture.jpg");
@@ -827,10 +791,6 @@
                             showFeedbackUI(result.filename);
                         }
 
-                        // Spotifyプレイヤーが表示される場合は、再生ボタンが
-                        // 押せないことがある旨の案内を常に表示する
-                        playerNotice.classList.remove("hidden");
-
                         if (result.low_confidence) {
                             candidateMessage.classList.remove("hidden");
                             logText += "\n※距離差が小さいため候補を表示しています。";
@@ -857,6 +817,7 @@
                         }
                     })
                     .catch((err) => {
+                        communicationError = true;
                         showResultScreen();
                         statusArea.textContent =
                             `\n通信エラー\n\n` +
@@ -868,23 +829,18 @@
                     })
                     .finally(() => {
                         judgingIndicator.classList.add("hidden");
-                        statusArea.classList.remove("hidden");
+                        if (SHOW_JUDGE_DETAILS || communicationError) {
+                            statusArea.classList.remove("hidden");
+                        }
                         backBtn.disabled = false;
                         matchBtn.disabled = false;
                     });
                 }, "image/jpeg", 0.8);
             });
 
-            // 外カメラ／インカメラの切り替え
-            switchCameraBtn.addEventListener("click", () => {
-                currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
-                startCamera();
-            });
-
             backBtn.addEventListener("click", () => {
                 audioResults.innerHTML = "";
                 candidateMessage.classList.add("hidden");
-                playerNotice.classList.add("hidden");
                 retryMessage.classList.add("hidden");
                 resetFeedbackUI();
                 statusArea.textContent = "判定結果を表示しています...";
