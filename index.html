@@ -348,6 +348,31 @@
 
         const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
+        // セッションID：同じ来館者（端末）の一連の利用をまとめるためのランダムなID
+        // （個人とは結びつかない）。最後の利用から SESSION_TIMEOUT_MIN 分を超えて
+        // 間が空いたら、新しいIDにする。保存などに失敗した場合は空文字を返し、
+        // ログ上は空欄になる（判定自体には影響しない）
+        const SESSION_TIMEOUT_MIN = 30;
+
+        function getSessionId() {
+            try {
+                const now = Date.now();
+                const saved = JSON.parse(localStorage.getItem("roomGuideSession") || "null");
+                let id;
+
+                if (saved && saved.id && (now - saved.last) <= SESSION_TIMEOUT_MIN * 60 * 1000) {
+                    id = saved.id;
+                } else {
+                    id = Math.random().toString(36).slice(2, 10);
+                }
+
+                localStorage.setItem("roomGuideSession", JSON.stringify({ id: id, last: now }));
+                return id;
+            } catch (e) {
+                return "";
+            }
+        }
+
         const SPOTIFY_EPISODES = {
             "1": "https://open.spotify.com/episode/5OkFo8MVrH4v7mRpUMr1NW?si=8ae3204964ec4f58",
             "2": "https://open.spotify.com/episode/7gEXu87MHXzKNOJwySsm3O?si=8c34d505291e4163",
@@ -743,6 +768,7 @@
 
                     const formData = new FormData();
                     formData.append("image", blob, "capture.jpg");
+                    formData.append("session_id", getSessionId());
 
                     fetch(`${SERVER_IP}/predict`, {
                         method: "POST",
