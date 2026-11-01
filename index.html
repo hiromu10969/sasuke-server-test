@@ -33,6 +33,69 @@
             display: none !important;
         }
 
+        /* 表紙画面（背景に cover.jpg を使用） */
+        #cover-screen {
+            min-height: 100vh;
+            min-height: 100dvh;
+            justify-content: center;
+            box-sizing: border-box;
+            padding: 24px 0;
+            text-align: center;
+            background:
+                linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.8)),
+                url("cover.jpg") 55% center / cover no-repeat;
+        }
+
+        .cover-label {
+            font-size: 0.95rem;
+            letter-spacing: 0.2em;
+            color: #e8e8e8;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .cover-title {
+            font-size: 1.8rem;
+            line-height: 1.45;
+            margin: 8px 0 24px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+        }
+
+        .consent-box {
+            width: 88%;
+            max-width: 380px;
+            padding: 14px 16px;
+            background-color: rgba(18, 18, 18, 0.85);
+            border: 1px solid #444;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            text-align: left;
+            box-sizing: border-box;
+        }
+
+        .consent-box p {
+            margin: 0 0 8px;
+        }
+
+        .consent-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .consent-title {
+            font-weight: bold;
+            text-align: center;
+            color: #e6a23c;
+        }
+
+        .cover-note {
+            width: 88%;
+            max-width: 380px;
+            margin-top: 4px;
+            font-size: 0.8rem;
+            color: #ccc;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+        }
+
         #video-container {
             position: relative;
             width: 90%;
@@ -295,8 +358,22 @@
 
 <body>
 
+    <!-- 表紙画面：最初に表示（同意して始めるとカメラ画面へ） -->
+    <div id="cover-screen" class="screen">
+        <div class="cover-label">画像認識型音声ガイド</div>
+        <h1 class="cover-title">旧豊田佐助邸<br>画像認識型音声ガイド</h1>
+        <div class="consent-box">
+            <p class="consent-title">ご利用の前にお読みください</p>
+            <p>「判定開始」ボタンを押したときのカメラの画像は、ガイドの精度を確かめるために、管理者のパソコンに保存されます。</p>
+            <p>保存した画像は精度の確認だけに使い、SNSなどで公開することはありません。</p>
+            <p>なるべく人が写り込まないように撮影してください。</p>
+        </div>
+        <button id="start-btn" class="btn">同意して始める</button>
+        <div class="cover-note">同意されない場合は、このページを閉じてください。</div>
+    </div>
+
     <!-- 画面①：カメラ画面 -->
-    <div id="camera-screen" class="screen">
+    <div id="camera-screen" class="screen hidden">
         <h1>旧豊田佐助邸 画像認識音声ガイド</h1>
         <div id="shooting-guide" class="message-banner">
             部屋には入らず、<br>廊下から部屋を撮影してください。
@@ -423,6 +500,8 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {
+            const coverScreen = document.getElementById("cover-screen");
+            const startBtn = document.getElementById("start-btn");
             const cameraScreen = document.getElementById("camera-screen");
             const resultScreen = document.getElementById("result-screen");
             const video = document.getElementById("camera-view");
@@ -879,8 +958,13 @@
                 showCameraScreen();
             });
 
-            // 初期化時にカメラ起動
-            startCamera();
+            // 表紙画面の「同意して始める」を押したらカメラ画面へ進み、カメラを起動
+            startBtn.addEventListener("click", () => {
+                coverScreen.classList.add("hidden");
+                cameraScreen.classList.remove("hidden");
+                window.scrollTo(0, 0);
+                startCamera();
+            });
         });
     </script>
 </body>
