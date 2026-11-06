@@ -240,9 +240,18 @@
         }
 
         #back-btn {
-            background-color: #555;
+            background-color: #1a73e8;
             margin-top: 5px;
+            margin-bottom: 8px;
+        }
+
+        #back-note {
+            width: 85%;
+            max-width: 380px;
             margin-bottom: 20px;
+            font-size: 0.85rem;
+            color: #ccc;
+            text-align: center;
         }
 
         canvas {
@@ -403,7 +412,8 @@
             <div id="feedback-thanks" class="hidden">ご回答ありがとうございました。</div>
         </div>
         <div id="retry-message" class="hidden">角度を変えて撮影し直してください<br>なるべく人が写り込まないようにしてください</div>
-        <button id="back-btn" class="btn">もう一度判定</button>
+        <button id="back-btn" class="btn">撮影画面に戻る</button>
+        <div id="back-note">このボタンを押すと、部屋を撮影する画面に戻ります。</div>
         <div id="status-area">判定結果を表示しています...</div>
     </div>
 
