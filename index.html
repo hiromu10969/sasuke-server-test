@@ -427,11 +427,13 @@
 
         const SERVER_IP = "https://gallantly-gosling-refrain.ngrok-free.dev";
 
-        // セッションID：同じ来館者（端末）の一連の利用をまとめるためのランダムなID
-        // （個人とは結びつかない）。最後の利用から SESSION_TIMEOUT_MIN 分を超えて
-        // 間が空いたら、新しいIDにする。保存などに失敗した場合は空文字を返し、
-        // ログ上は空欄になる（判定自体には影響しない）
-        const SESSION_TIMEOUT_MIN = 30;
+        // セッションID：同じ端末（ブラウザ）の利用をまとめるためのランダムなID
+        // （個人とは結びつかない）。SESSION_TIMEOUT_MIN が 0 のときは時間で区切らず、
+        // 同じ端末では常に同じIDを使う。1以上のときは、最後の利用から
+        // その分数を超えて間が空いたら新しいIDにする。
+        // 保存などに失敗した場合は空文字を返し、ログ上は空欄になる
+        // （判定自体には影響しない）
+        const SESSION_TIMEOUT_MIN = 0;
 
         function getSessionId() {
             try {
@@ -439,7 +441,7 @@
                 const saved = JSON.parse(localStorage.getItem("roomGuideSession") || "null");
                 let id;
 
-                if (saved && saved.id && (now - saved.last) <= SESSION_TIMEOUT_MIN * 60 * 1000) {
+                if (saved && saved.id && (SESSION_TIMEOUT_MIN === 0 || (now - saved.last) <= SESSION_TIMEOUT_MIN * 60 * 1000)) {
                     id = saved.id;
                 } else {
                     id = Math.random().toString(36).slice(2, 10);
