@@ -141,23 +141,36 @@
         #retry-message {
             width: 85%;
             max-width: 380px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        .retry-text {
             padding: 12px 15px;
             background-color: #d9534f;
             color: white;
             border-radius: 8px;
             font-size: 1rem;
             font-weight: bold;
-            margin-bottom: 15px;
             text-align: center;
             box-sizing: border-box;
         }
 
         .retry-example {
-            margin-top: 12px;
+            margin-top: 10px;
+            padding: 12px;
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            text-align: center;
+            box-sizing: border-box;
         }
 
         .retry-example-title {
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #e6e6e6;
         }
 
         .retry-example img {
@@ -425,7 +438,8 @@
             </div>
             <div id="feedback-thanks" class="hidden">ご回答ありがとうございました。</div>
         </div>
-        <div id="retry-message" class="hidden">撮影した画像から部屋を認識できませんでした。<br>下の撮影例を参考に、障害物が写り込まないようにして、廊下から部屋を撮影してください。<br>階段や廊下などは現在、認識の対象外です。部屋を撮影して、もう一度お試しください。
+        <div id="retry-message" class="hidden">
+            <div class="retry-text">撮影した画像から部屋を認識できませんでした。<br>下の撮影例を参考に、障害物が写り込まないようにして、廊下から部屋を撮影してください。<br>階段や廊下などは現在、認識の対象外です。部屋を撮影して、もう一度お試しください。</div>
             <div class="retry-example">
                 <div class="retry-example-title">良い撮影例</div>
                 <img src="good-example.jpg" alt="良い撮影例">
