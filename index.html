@@ -152,6 +152,20 @@
             box-sizing: border-box;
         }
 
+        .retry-example {
+            margin-top: 12px;
+        }
+
+        .retry-example-title {
+            margin-bottom: 6px;
+        }
+
+        .retry-example img {
+            width: 100%;
+            display: block;
+            border-radius: 6px;
+        }
+
         #status-area {
             width: 85%;
             max-width: 380px;
@@ -411,7 +425,12 @@
             </div>
             <div id="feedback-thanks" class="hidden">ご回答ありがとうございました。</div>
         </div>
-        <div id="retry-message" class="hidden">角度を変えて撮影し直してください<br>なるべく人が写り込まないようにしてください</div>
+        <div id="retry-message" class="hidden">撮影した画像から部屋を認識できませんでした。<br>下の撮影例を参考に、障害物が写り込まないようにして、廊下から部屋を撮影してください。<br>階段や廊下などは現在、認識の対象外です。部屋を撮影して、もう一度お試しください。
+            <div class="retry-example">
+                <div class="retry-example-title">良い撮影例</div>
+                <img src="good-example.jpg" alt="良い撮影例">
+            </div>
+        </div>
         <button id="back-btn" class="btn">撮影画面に戻る</button>
         <div id="back-note">このボタンを押すと、部屋を撮影する画面に戻ります。</div>
         <div id="status-area">判定結果を表示しています...</div>
